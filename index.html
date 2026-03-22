@@ -102,7 +102,7 @@
           </div>
         </div>
         <div class="scroll-area">
-          <div class="section-label">Leaderboard</div>
+          <div class="section-label">Family Members</div>
           <div class="glass-card leaderboard-card" id="parent-leaderboard">
             <p class="empty-sm">No kids yet — add them in Manage.</p>
           </div>
@@ -235,6 +235,21 @@
     </div>
   </div>
 
+  <!-- ═══════════════════════ SCREEN 6.5: CHARACTER SELECT ═════════════ -->
+  <div id="screen-char-select" class="screen">
+    <div class="bg-orb orb1"></div>
+    <div class="bg-orb orb2"></div>
+    <div class="center-wrap">
+      <div class="char-select-header">
+        <h2 class="card-title">Choose Your Hero</h2>
+        <p class="card-sub">Pick a character to represent you on your quest!</p>
+      </div>
+      <div class="char-select-grid" id="char-select-grid"></div>
+      <button class="btn-primary char-select-confirm" id="btn-confirm-char" disabled>Select Character</button>
+      <p class="error-msg" id="char-select-error"></p>
+    </div>
+  </div>
+
   <!-- ═══════════════════════ SCREEN 7: KID PIN ═══════════════════════ -->
   <div id="screen-kid-pin" class="screen">
     <div class="bg-orb orb1"></div>
@@ -285,17 +300,105 @@
           </button>
         </div>
       </div>
-      <div class="scroll-area">
-        <div class="section-label">Family Leaderboard</div>
-        <div class="glass-card leaderboard-card" id="kid-leaderboard">
-          <p class="empty-sm">Just you here!</p>
-        </div>
-        <div class="section-label">Your Chores</div>
-        <div class="chore-grid" id="kid-chore-grid">
-          <div class="empty-chores"><span>🌟</span><p>No chores assigned yet.<br/>Ask your parent!</p></div>
-        </div>
-        <div style="height:40px;"></div>
+
+      <!-- Kid Nav Tabs -->
+      <div class="kid-nav-tabs">
+        <button class="kid-nav-tab active" data-kid-panel="kid-panel-home">🏠 Home</button>
+        <button class="kid-nav-tab" data-kid-panel="kid-panel-avatar">🎭 Avatar</button>
+        <button class="kid-nav-tab" data-kid-panel="kid-panel-store">🏪 Store</button>
       </div>
+
+      <!-- KID HOME PANEL -->
+      <div class="kid-tab-panel active-kid-panel" id="kid-panel-home">
+        <div class="scroll-area">
+          <div class="section-label">Family Leaderboard</div>
+          <div class="glass-card leaderboard-card" id="kid-leaderboard">
+            <p class="empty-sm">Just you here!</p>
+          </div>
+          <div class="section-label">Your Chores</div>
+          <div class="chore-grid" id="kid-chore-grid">
+            <div class="empty-chores"><span>🌟</span><p>No chores assigned yet.<br/>Ask your parent!</p></div>
+          </div>
+          <div style="height:40px;"></div>
+        </div>
+      </div>
+
+      <!-- KID AVATAR PANEL -->
+      <div class="kid-tab-panel" id="kid-panel-avatar">
+        <div class="scroll-area">
+          <div class="avatar-showcase" id="avatar-showcase">
+            <div class="avatar-showcase-img" id="avatar-showcase-img"></div>
+            <div class="avatar-showcase-name" id="avatar-showcase-name">Your Hero</div>
+            <div class="avatar-showcase-level" id="avatar-showcase-level">
+              <span class="level-badge lv-bronze">Lv. 1</span>
+              <span class="streak-badge">🔥 0 day streak</span>
+            </div>
+            <div class="avatar-equipped-items" id="avatar-equipped-items">
+              <p class="empty-sm">No items equipped yet. Visit the Store!</p>
+            </div>
+          </div>
+
+          <div class="section-label">Equipped Gear</div>
+          <div class="equipped-slots" id="equipped-slots">
+            <div class="equip-slot glass-card" data-slot="outfit">
+              <div class="equip-slot-label">Outfit</div>
+              <div class="equip-slot-icon">👕</div>
+              <div class="equip-slot-name">None</div>
+            </div>
+            <div class="equip-slot glass-card" data-slot="armor">
+              <div class="equip-slot-label">Armor</div>
+              <div class="equip-slot-icon">🛡️</div>
+              <div class="equip-slot-name">None</div>
+            </div>
+            <div class="equip-slot glass-card" data-slot="weapon">
+              <div class="equip-slot-label">Weapon</div>
+              <div class="equip-slot-icon">⚔️</div>
+              <div class="equip-slot-name">None</div>
+            </div>
+            <div class="equip-slot glass-card" data-slot="accessory">
+              <div class="equip-slot-label">Accessory</div>
+              <div class="equip-slot-icon">✨</div>
+              <div class="equip-slot-name">None</div>
+            </div>
+          </div>
+
+          <div class="section-label">Stats</div>
+          <div class="glass-card stats-card" id="kid-stats-card">
+            <div class="stat-row"><span>Total Points Earned</span><span id="stat-lifetime-pts">0</span></div>
+            <div class="stat-row"><span>Current Balance</span><span id="stat-current-pts">0</span></div>
+            <div class="stat-row"><span>Level</span><span id="stat-level">1</span></div>
+            <div class="stat-row"><span>Daily Streak</span><span id="stat-streak">0 days</span></div>
+            <div class="stat-row"><span>Chores Completed</span><span id="stat-total-chores">0</span></div>
+          </div>
+          <div style="height:40px;"></div>
+        </div>
+      </div>
+
+      <!-- KID STORE PANEL -->
+      <div class="kid-tab-panel" id="kid-panel-store">
+        <div class="store-header">
+          <div class="store-balance">
+            <span class="store-balance-icon">💰</span>
+            <span class="store-balance-val" id="store-balance-val">0</span>
+            <span class="store-balance-label">pts</span>
+          </div>
+          <div class="store-level-badge" id="store-level-badge">Lv. 1</div>
+        </div>
+        <div class="store-categories">
+          <button class="store-cat-btn active" data-cat="all">All</button>
+          <button class="store-cat-btn" data-cat="outfit">👕 Outfits</button>
+          <button class="store-cat-btn" data-cat="armor">🛡️ Armor</button>
+          <button class="store-cat-btn" data-cat="weapon">⚔️ Weapons</button>
+          <button class="store-cat-btn" data-cat="accessory">✨ Accessories</button>
+        </div>
+        <div class="scroll-area">
+          <div class="store-grid" id="store-grid">
+            <p class="empty-sm">Loading store...</p>
+          </div>
+          <div style="height:40px;"></div>
+        </div>
+      </div>
+
     </div>
   </div>
 
@@ -388,8 +491,6 @@
         <input type="tel" id="kid-phone-input" class="form-input" placeholder="Phone number (for reminders)" />
       </div>
       <button class="btn-ghost" id="btn-enable-kid-notifs" style="margin-bottom:12px;font-size:13px">🔔 Enable Notifications</button>
-      <p class="emoji-label">Avatar</p>
-      <div class="emoji-grid" id="kid-avatar-picker"></div>
       <p class="emoji-label">Theme Color</p>
       <div class="color-grid" id="kid-color-picker"></div>
       <div class="modal-actions">
@@ -419,6 +520,47 @@
         <button class="btn-ghost" id="btn-close-summary" style="padding:4px 10px">✕</button>
       </div>
       <div id="daily-summary-content"><p class="empty-sm">Loading...</p></div>
+    </div>
+  </div>
+
+  <!-- Store Item Detail Modal -->
+  <div class="modal-overlay hidden" id="modal-store-item">
+    <div class="modal-card glass-card">
+      <div class="store-item-detail-img" id="store-detail-img"></div>
+      <h3 class="modal-title" id="store-detail-name">Item</h3>
+      <p class="detail-desc" id="store-detail-desc"></p>
+      <div class="detail-badges">
+        <span class="badge" id="store-detail-price">0 pts</span>
+        <span class="badge" id="store-detail-rarity">Common</span>
+        <span class="badge" id="store-detail-category">Outfit</span>
+        <span class="badge" id="store-detail-level">Lv. 1+</span>
+      </div>
+      <div id="store-detail-actions" class="modal-actions">
+        <button class="btn-ghost" id="btn-close-store-item">Close</button>
+        <button class="btn-primary" id="btn-buy-item">Buy</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- View Avatar Modal (for viewing other kids' avatars) -->
+  <div class="modal-overlay hidden" id="modal-view-avatar">
+    <div class="modal-card glass-card" style="align-items:center;text-align:center">
+      <div class="avatar-showcase-img modal-avatar-img" id="modal-avatar-img"></div>
+      <h3 class="modal-title" id="modal-avatar-name">Hero</h3>
+      <div class="avatar-showcase-level" id="modal-avatar-level">
+        <span class="level-badge lv-bronze">Lv. 1</span>
+        <span class="streak-badge">🔥 0 day streak</span>
+      </div>
+      <div class="equipped-slots modal-equipped" id="modal-avatar-gear"></div>
+      <button class="btn-ghost" id="btn-close-view-avatar" style="width:100%;margin-top:8px;">Close</button>
+    </div>
+  </div>
+
+  <!-- Streak Bonus Toast -->
+  <div class="streak-toast hidden" id="streak-toast">
+    <div class="streak-toast-content">
+      <span class="streak-toast-icon">🔥</span>
+      <span class="streak-toast-text" id="streak-toast-text">5-Day Streak! +100 Bonus Points!</span>
     </div>
   </div>
 
