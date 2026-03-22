@@ -94,9 +94,12 @@
             <div class="topbar-title" id="family-name-display">Family</div>
             <div class="topbar-sub">Command Center</div>
           </div>
-          <button class="icon-btn" id="btn-parent-logout" title="Logout">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-          </button>
+          <div style="display:flex;gap:8px;align-items:center">
+            <button class="icon-btn" id="btn-daily-summary" title="Today's Summary" style="font-size:18px">📊</button>
+            <button class="icon-btn" id="btn-parent-logout" title="Logout">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            </button>
+          </div>
         </div>
         <div class="scroll-area">
           <div class="section-label">Leaderboard</div>
@@ -159,6 +162,27 @@
             <button class="btn-ghost" id="btn-regen-code">Regenerate Code</button>
             <p class="success-msg" id="copy-success"></p>
           </div>
+
+          <!-- Parent phone -->
+          <div class="glass-card invite-card" style="margin-top:16px">
+            <p class="invite-label">📱 Your Phone Number</p>
+            <p style="font-size:12px;color:var(--text-muted);margin-bottom:12px">For future SMS reminders</p>
+            <input type="tel" id="parent-phone-input" class="form-input" placeholder="+1 555 000 0000" style="margin-bottom:8px" />
+            <button class="btn-primary" id="btn-save-parent-phone">Save Number</button>
+            <p class="success-msg" id="parent-phone-msg"></p>
+          </div>
+
+          <!-- Reminders -->
+          <div class="glass-card invite-card" style="margin-top:16px">
+            <p class="invite-label">🔔 Reminders</p>
+            <button class="btn-ghost" id="btn-enable-notifs" style="margin-bottom:12px">Enable Browser Notifications</button>
+            <div style="background:rgba(255,255,255,0.04);border-radius:12px;padding:12px;margin-bottom:12px">
+              <p style="font-size:13px;color:var(--text-muted);margin-bottom:6px">⏰ <strong style="color:var(--text)">5:00 PM</strong> — Kids reminded of unfinished chores</p>
+              <p style="font-size:13px;color:var(--text-muted)">🌙 <strong style="color:var(--text)">9:00 PM</strong> — Daily summary shown to parent</p>
+            </div>
+            <p style="font-size:11px;color:var(--text-dim);background:rgba(245,166,35,0.08);border:1px solid rgba(245,166,35,0.2);border-radius:10px;padding:10px;line-height:1.5">💬 SMS reminders are a future upgrade (requires Twilio backend). Phone numbers are stored for when that feature launches.</p>
+          </div>
+
           <div style="height:100px;"></div>
         </div>
       </div>
@@ -343,8 +367,7 @@
         <span class="badge status-badge" id="detail-status-badge">—</span>
       </div>
       <div class="detail-approve-row" id="detail-approve-row" style="display:none;">
-        <button class="btn-approve" id="btn-approve-chore">✓ Approve</button>
-        <button class="btn-reject" id="btn-reject-chore">✗ Reject</button>
+        <button class="btn-ghost" id="btn-undo-chore" style="color:var(--accent-amber);border-color:rgba(245,166,35,0.3)">↩ Undo Completion</button>
       </div>
       <div class="detail-edit-row">
         <button class="btn-ghost" id="btn-edit-chore">Edit</button>
@@ -361,6 +384,10 @@
       <div class="form-group">
         <input type="text" id="kid-nickname-input" class="form-input" placeholder="Nickname" />
       </div>
+      <div class="form-group">
+        <input type="tel" id="kid-phone-input" class="form-input" placeholder="Phone number (for reminders)" />
+      </div>
+      <button class="btn-ghost" id="btn-enable-kid-notifs" style="margin-bottom:12px;font-size:13px">🔔 Enable Notifications</button>
       <p class="emoji-label">Avatar</p>
       <div class="emoji-grid" id="kid-avatar-picker"></div>
       <p class="emoji-label">Theme Color</p>
@@ -369,6 +396,29 @@
         <button class="btn-ghost" id="btn-cancel-customize">Cancel</button>
         <button class="btn-primary" id="btn-save-customize">Save</button>
       </div>
+    </div>
+  </div>
+
+  <!-- Kid History Modal -->
+  <div class="modal-overlay hidden" id="modal-kid-history">
+    <div class="modal-card glass-card" style="max-height:80vh;overflow-y:auto">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+        <span id="kid-history-avatar" style="font-size:28px">⭐</span>
+        <h3 class="modal-title" id="kid-history-name" style="margin:0">History</h3>
+        <button class="btn-ghost" id="btn-close-kid-history" style="margin-left:auto;padding:4px 10px">✕</button>
+      </div>
+      <div id="kid-history-content"><p class="empty-sm">Loading...</p></div>
+    </div>
+  </div>
+
+  <!-- Daily Summary Modal -->
+  <div class="modal-overlay hidden" id="modal-daily-summary">
+    <div class="modal-card glass-card" style="max-height:85vh;overflow-y:auto">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <h3 class="modal-title" style="margin:0">📊 Today's Summary</h3>
+        <button class="btn-ghost" id="btn-close-summary" style="padding:4px 10px">✕</button>
+      </div>
+      <div id="daily-summary-content"><p class="empty-sm">Loading...</p></div>
     </div>
   </div>
 

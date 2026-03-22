@@ -140,7 +140,7 @@ function renderLeaderboard(containerId, kids, completions) {
   const sorted = [...kids].sort((a, b) => (b.points || 0) - (a.points || 0));
   sorted.forEach(kid => {
     const kidCompletions = completions.filter(c =>
-      c.kidId === kid.id && c.status === "approved" &&
+      c.kidId === kid.id && c.status === "completed" &&
       c.timestamp && c.timestamp.toDate && c.timestamp.toDate().toISOString() >= weekAgo
     );
     // chores assigned to this kid
@@ -201,18 +201,17 @@ function renderParentChoreGrid() {
     const status = getChoreStatus(chore.id, null);
     const tile = document.createElement("button");
     tile.className = "chore-tile";
-    if (status === "pending")  tile.classList.add("state-pending");
-    if (status === "approved") tile.classList.add("state-approved");
+    if (status === "completed") tile.classList.add("state-approved");
     const assignedKid = state.kids.find(k => (chore.assignedTo || []).includes(k.id));
     tile.innerHTML = `
-      ${status === "pending"  ? `<div class="tile-status-dot pending"></div>` : ""}
-      ${status === "approved" ? `<div class="tile-status-dot approved"></div>` : ""}
+      ${status === "completed" ? `<div class="tile-status-dot approved"></div>` : ""}
       <div class="tile-freq-badge">${chore.frequency || "daily"}</div>
       <div class="tile-emoji">${chore.emoji || "🧹"}</div>
       <div class="tile-name">${chore.name}</div>
       <div class="tile-meta">${assignedKid ? (assignedKid.emoji || "👤") + " " + (assignedKid.nickname || assignedKid.name) : "Unassigned"}</div>
     `;
     tile.addEventListener("click", () => openChoreDetail(chore, status));
+
     grid.appendChild(tile);
   });
 }
@@ -232,24 +231,19 @@ function renderKidChoreGrid() {
     const status = getChoreStatus(chore.id, [state.kidId]);
     const tile = document.createElement("button");
     tile.className = "chore-tile";
-    if (status === "pending")  {
-      tile.classList.add("state-pending");
-      tile.style.borderColor = `rgba(${hexToRgb("#f5a623")},0.4)`;
-    }
-    if (status === "approved") {
+    if (status === "completed") {
       tile.style.background = `linear-gradient(135deg, rgba(${rgb},0.15), rgba(${rgb},0.05))`;
       tile.style.borderColor = `rgba(${rgb},0.4)`;
       tile.style.boxShadow   = `0 0 16px rgba(${rgb},0.15)`;
     }
     tile.innerHTML = `
-      ${status === "pending"  ? `<div class="tile-status-dot pending"></div>` : ""}
-      ${status === "approved" ? `<div class="tile-status-dot approved"></div>` : ""}
+      ${status === "completed" ? `<div class="tile-status-dot approved"></div>` : ""}
       <div class="tile-freq-badge">${chore.frequency || "daily"}</div>
       <div class="tile-emoji">${chore.emoji || "🧹"}</div>
       <div class="tile-name">${chore.name}</div>
       <div class="tile-meta">${chore.points || 10} pts</div>
     `;
-    if (status === "incomplete" || status === "rejected") {
+    if (status === "incomplete") {
       tile.addEventListener("click", () => markChoreDone(chore, tile));
     } else {
       tile.style.cursor = "default";
@@ -268,18 +262,24 @@ async function markChoreDone(chore, tile) {
   tile.style.background = `linear-gradient(135deg, rgba(${rgb},0.18), rgba(${rgb},0.06))`;
   tile.style.borderColor = `rgba(${rgb},0.5)`;
   tile.style.boxShadow   = `0 0 24px rgba(${rgb},0.3)`;
-  // Add pending dot
-  const dot = document.createElement("div");
-  dot.className = "tile-status-dot pending";
-  tile.insertBefore(dot, tile.firstChild);
 
   try {
     await addDoc(collection(db, "families", state.familyIdKid, "completions"), {
       choreId: chore.id,
       kidId: state.kidId,
       timestamp: serverTimestamp(),
-      status: "pending"
+      date: todayStr(),
+      status: "completed"
     });
+    // Award points immediately
+    const kidRef = doc(db, "families", state.familyIdKid, "kids", state.kidId);
+    const kidSnap = await getDoc(kidRef);
+    if (kidSnap.exists()) {
+      await updateDoc(kidRef, {
+        points: (kidSnap.data().points || 0) + (chore.points || 10),
+        totalCompletions: (kidSnap.data().totalCompletions || 0) + 1
+      });
+    }
     renderKidChoreGrid();
   } catch (e) {
     console.error(e);
@@ -294,15 +294,13 @@ function openChoreDetail(chore, status) {
   document.getElementById("detail-points").textContent = (chore.points || 10) + " pts";
   document.getElementById("detail-freq").textContent   = chore.frequency || "daily";
   const statusBadge = document.getElementById("detail-status-badge");
-  statusBadge.textContent = status;
-  statusBadge.className = "badge status-badge " + status;
+  statusBadge.textContent = status === "completed" ? "✅ done" : status;
+  statusBadge.className = "badge status-badge " + (status === "completed" ? "approved" : status);
   const approveRow = document.getElementById("detail-approve-row");
-  if (status === "pending") {
+  if (status === "completed") {
     approveRow.style.display = "flex";
-    // Find the pending completion
-    const pending = state.completions.find(c => c.choreId === chore.id && c.status === "pending");
-    document.getElementById("btn-approve-chore").onclick = () => approveCompletion(pending, chore);
-    document.getElementById("btn-reject-chore").onclick  = () => rejectCompletion(pending, chore);
+    const comp = state.completions.find(c => c.choreId === chore.id && c.status === "completed");
+    document.getElementById("btn-undo-chore").onclick = () => undoCompletion(comp, chore);
   } else {
     approveRow.style.display = "none";
   }
@@ -311,26 +309,20 @@ function openChoreDetail(chore, status) {
   openModal("modal-chore-detail");
 }
 
-async function approveCompletion(completion, chore) {
+async function undoCompletion(completion, chore) {
   if (!completion || !state.familyId) return;
+  if (!confirm("Undo this completion? Points will be removed.")) return;
   try {
-    await updateDoc(doc(db, "families", state.familyId, "completions", completion.id), { status: "approved" });
-    // Add points to kid
+    await deleteDoc(doc(db, "families", state.familyId, "completions", completion.id));
     const kid = state.kids.find(k => k.id === completion.kidId);
     if (kid) {
       await updateDoc(doc(db, "families", state.familyId, "kids", kid.id), {
-        points: (kid.points || 0) + (chore.points || 10)
+        points: Math.max(0, (kid.points || 0) - (chore.points || 10)),
+        totalCompletions: Math.max(0, (kid.totalCompletions || 0) - 1)
       });
     }
     closeModal("modal-chore-detail");
-  } catch(e) { console.error(e); }
-}
-
-async function rejectCompletion(completion) {
-  if (!completion || !state.familyId) return;
-  try {
-    await updateDoc(doc(db, "families", state.familyId, "completions", completion.id), { status: "rejected" });
-    closeModal("modal-chore-detail");
+    closeModal("modal-kid-history");
   } catch(e) { console.error(e); }
 }
 
@@ -358,8 +350,13 @@ function renderKidsList() {
         <div class="manage-item-name">${kid.nickname || kid.name}</div>
         <div class="manage-item-sub">Age ${kid.age || "?"} · ${kid.points || 0} pts</div>
       </div>
+      <button class="btn-view-kid" data-id="${kid.id}" title="View history">View</button>
       <button class="manage-item-action" title="Remove kid" data-id="${kid.id}">×</button>
     `;
+    item.querySelector(".btn-view-kid").addEventListener("click", e => {
+      e.stopPropagation();
+      viewKidHistory(kid.id);
+    });
     item.querySelector(".manage-item-action").addEventListener("click", e => {
       e.stopPropagation();
       if (confirm(`Remove ${kid.name}?`)) removeKid(kid.id);
@@ -367,6 +364,64 @@ function renderKidsList() {
     list.appendChild(item);
   });
 }
+
+async function viewKidHistory(kidId) {
+  const kid = state.kids.find(k => k.id === kidId);
+  if (!kid || !state.familyId) return;
+  document.getElementById("kid-history-avatar").textContent = kid.emoji || "⭐";
+  document.getElementById("kid-history-name").textContent = kid.nickname || kid.name;
+  document.getElementById("kid-history-content").innerHTML = `<p class="empty-sm">Loading...</p>`;
+  openModal("modal-kid-history");
+  try {
+    const today = todayStr();
+    const kidChores = state.chores.filter(c => (c.assignedTo || []).includes(kidId));
+    const compQ = query(collection(db, "families", state.familyId, "completions"), where("kidId", "==", kidId));
+    const compSnap = await getDocs(compQ);
+    const allComps = compSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const todayDone = allComps.filter(c => c.date === today && c.status === "completed");
+    const doneIds = todayDone.map(c => c.choreId);
+    const done = kidChores.filter(c => doneIds.includes(c.id));
+    const todo = kidChores.filter(c => !doneIds.includes(c.id));
+    const history = allComps.filter(c => c.status === "completed")
+      .sort((a, b) => (b.date || "").localeCompare(a.date || "")).slice(0, 25);
+    let html = "";
+    if (kidChores.length === 0) {
+      html = `<p class="empty-sm">No chores assigned yet.</p>`;
+    } else {
+      if (done.length) {
+        html += `<div class="hist-label">✅ Completed Today (${done.length})</div>`;
+        html += done.map(c => {
+          const comp = todayDone.find(tc => tc.choreId === c.id);
+          const time = comp?.timestamp?.toDate ? comp.timestamp.toDate().toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"}) : "";
+          return `<div class="hist-item done"><span>${c.emoji || "📋"} ${c.name}</span><div style="display:flex;gap:8px;align-items:center"><span class="hist-pts">+${c.points} pts</span>${time ? `<span class="hist-time">${time}</span>` : ""}<button class="btn-undo-hist" onclick="undoCompletionById('${comp?.id}','${kidId}',${c.points || 10})">Undo</button></div></div>`;
+        }).join("");
+      }
+      if (todo.length) {
+        html += `<div class="hist-label">⭕ Still To Do (${todo.length})</div>`;
+        html += todo.map(c => `<div class="hist-item todo"><span>${c.emoji || "📋"} ${c.name}</span><span class="hist-pts">${c.points} pts</span></div>`).join("");
+      }
+    }
+    if (history.length) {
+      html += `<div class="hist-label" style="margin-top:20px">📜 Completion Log</div>`;
+      html += history.map(c => {
+        const chore = state.chores.find(ch => ch.id === c.choreId);
+        return `<div class="hist-item done"><span>${chore?.emoji || "📋"} ${chore?.name || "Unknown"}</span><span class="hist-time">${c.date || ""}</span></div>`;
+      }).join("");
+    }
+    document.getElementById("kid-history-content").innerHTML = html;
+  } catch(e) {
+    document.getElementById("kid-history-content").innerHTML = `<p class="empty-sm">Error loading history.</p>`;
+    console.error(e);
+  }
+}
+
+window.undoCompletionById = async (compId, kidId, points) => {
+  if (!compId || !state.familyId) return;
+  const comp = { id: compId, kidId };
+  const chore = { points };
+  await undoCompletion(comp, chore);
+  viewKidHistory(kidId);
+};
 
 function renderChoresList() {
   const list = document.getElementById("chores-list");
@@ -406,20 +461,20 @@ function renderChoresList() {
 function renderStatusOverview() {
   const el = document.getElementById("status-overview");
   if (!el) return;
-  const pending = state.completions.filter(c => c.status === "pending");
-  if (!pending.length) {
-    el.innerHTML = `<p class="empty-sm">All caught up! 🎉</p>`;
+  const today = todayStr();
+  const done = state.completions.filter(c => c.status === "completed" && c.date === today);
+  const total = state.chores.reduce((sum, ch) => sum + (ch.assignedTo || []).length, 0);
+  if (!done.length) {
+    el.innerHTML = `<p class="empty-sm">No chores completed yet today.</p>`;
     return;
   }
   const byKid = {};
-  pending.forEach(c => {
-    byKid[c.kidId] = (byKid[c.kidId] || 0) + 1;
-  });
+  done.forEach(c => { byKid[c.kidId] = (byKid[c.kidId] || 0) + 1; });
   el.innerHTML = Object.entries(byKid).map(([kidId, count]) => {
     const kid = state.kids.find(k => k.id === kidId);
     const name = kid ? (kid.nickname || kid.name) : "Unknown";
-    return `<p class="empty-sm">${kid?.emoji || "👤"} ${name} — <strong style="color:var(--accent-amber)">${count} pending</strong></p>`;
-  }).join("");
+    return `<p class="empty-sm">${kid?.emoji || "👤"} ${name} — <strong style="color:var(--accent-green)">${count} done today</strong></p>`;
+  }).join("") + `<p class="empty-sm" style="margin-top:6px;color:var(--text-muted)">${done.length}/${total} total chores completed</p>`;
 }
 
 // ── Kid CRUD ──────────────────────────────────────────────
@@ -546,6 +601,103 @@ async function deleteChore(chore) {
   } catch(e) { console.error(e); }
 }
 
+// ── Notifications ─────────────────────────────────────────
+async function requestNotificationPermission() {
+  if (!("Notification" in window)) return false;
+  if (Notification.permission === "granted") return true;
+  const p = await Notification.requestPermission();
+  return p === "granted";
+}
+function sendNotification(title, body) {
+  if (Notification.permission === "granted") new Notification(title, { body });
+}
+let _reminderStarted = false;
+function startReminderScheduler() {
+  if (_reminderStarted) return;
+  _reminderStarted = true;
+  checkReminders();
+  setInterval(checkReminders, 60000);
+}
+function checkReminders() {
+  const h = new Date().getHours(), m = new Date().getMinutes();
+  // 5 PM: kid reminder for incomplete chores
+  if (h === 17 && m === 0 && state.kidId && state.familyIdKid) {
+    const key = `kidRem-${state.kidId}-${todayStr()}`;
+    if (!localStorage.getItem(key)) {
+      const today = todayStr();
+      const incomplete = state.chores.filter(ch =>
+        (ch.assignedTo || []).includes(state.kidId) &&
+        !state.completions.find(c => c.choreId === ch.id && c.status === "completed" && c.date === today)
+      );
+      if (incomplete.length) {
+        sendNotification("ChoreQuest ⭐", `You still have ${incomplete.length} chore${incomplete.length > 1 ? "s" : ""} left today!`);
+        localStorage.setItem(key, "1");
+      }
+    }
+  }
+  // 9 PM: parent daily summary
+  if (h === 21 && m === 0 && state.parentUser && state.familyId) {
+    const key = `parentSum-${todayStr()}`;
+    if (!localStorage.getItem(key)) {
+      sendNotification("ChoreQuest ⭐", "Daily summary is ready — see how the family did today.");
+      localStorage.setItem(key, "1");
+      showDailySummary();
+    }
+  }
+}
+
+// ── Daily Summary ─────────────────────────────────────────
+async function showDailySummary() {
+  if (!state.familyId) return;
+  openModal("modal-daily-summary");
+  document.getElementById("daily-summary-content").innerHTML = `<p class="empty-sm">Loading...</p>`;
+  try {
+    const today = todayStr();
+    const compQ = query(collection(db, "families", state.familyId, "completions"), where("date", "==", today));
+    const compSnap = await getDocs(compQ);
+    const todayComps = compSnap.docs.map(d => ({ id: d.id, ...d.data() })).filter(c => c.status === "completed");
+    let totalA = 0, totalD = 0;
+    const sections = state.kids.map(kid => {
+      const kidChores = state.chores.filter(c => (c.assignedTo || []).includes(kid.id));
+      const doneIds = todayComps.filter(c => c.kidId === kid.id).map(c => c.choreId);
+      const done = kidChores.filter(c => doneIds.includes(c.id));
+      const todo = kidChores.filter(c => !doneIds.includes(c.id));
+      totalA += kidChores.length; totalD += done.length;
+      if (!kidChores.length) return `<div class="sum-kid"><div class="sum-kid-hdr">${kid.emoji || "⭐"} <strong>${kid.nickname || kid.name}</strong> — no chores</div></div>`;
+      return `<div class="sum-kid">
+        <div class="sum-kid-hdr">${kid.emoji || "⭐"} <strong>${kid.nickname || kid.name}</strong> — ${done.length}/${kidChores.length} done</div>
+        ${done.length ? `<div class="sum-label">✅ Done</div>${done.map(c => `<div class="sum-row done">${c.emoji || "📋"} ${c.name} <span class="hist-pts">+${c.points} pts</span></div>`).join("")}` : ""}
+        ${todo.length ? `<div class="sum-label">⭕ Not Done</div>${todo.map(c => `<div class="sum-row todo">${c.emoji || "📋"} ${c.name}</div>`).join("")}` : ""}
+      </div>`;
+    }).join("");
+    const pct = totalA ? Math.round(totalD / totalA * 100) : 0;
+    const dateStr = new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
+    document.getElementById("daily-summary-content").innerHTML = `
+      <p style="text-align:center;color:var(--text-muted);font-size:13px;margin-bottom:12px">${dateStr}</p>
+      <div class="sum-overall">Family completed <strong>${pct}%</strong> today<br><span style="font-size:13px;opacity:0.8">${totalD} of ${totalA} chores done</span></div>
+      ${state.kids.length ? sections : "<p class='empty-sm'>No kids yet.</p>"}
+    `;
+  } catch(e) {
+    document.getElementById("daily-summary-content").innerHTML = `<p class="empty-sm">Error loading.</p>`;
+    console.error(e);
+  }
+}
+
+// ── Parent phone & settings ───────────────────────────────
+function setupParentSettings() {
+  const phone = state.familyDoc?.parentPhone || "";
+  const el = document.getElementById("parent-phone-input");
+  if (el) el.value = phone;
+  const notifBtn = document.getElementById("btn-enable-notifs");
+  if (notifBtn) {
+    if (Notification.permission === "granted") notifBtn.textContent = "✅ Notifications On";
+    notifBtn.addEventListener("click", async () => {
+      const ok = await requestNotificationPermission();
+      notifBtn.textContent = ok ? "✅ Notifications On" : "Blocked — check browser settings";
+    });
+  }
+}
+
 // ── Invite code ───────────────────────────────────────────
 function renderInvite() {
   const code = state.familyDoc?.inviteCode || "";
@@ -653,8 +805,19 @@ async function goToParentDashboard(familyId) {
   const nameEl = document.getElementById("family-name-display");
   if (nameEl) nameEl.textContent = state.familyDoc?.name || "Family";
   renderInvite();
+  setupParentSettings();
   startParentListeners(familyId);
   showScreen("screen-parent-dashboard");
+  startReminderScheduler();
+  // Auto-show daily summary after 9 PM if not yet shown today
+  setTimeout(() => {
+    const h = new Date().getHours();
+    const key = `parentSum-${todayStr()}`;
+    if (h >= 21 && !localStorage.getItem(key)) {
+      localStorage.setItem(key, "1");
+      showDailySummary();
+    }
+  }, 1200);
 }
 
 // ── Go to kid dashboard ────────────────────────────────────
@@ -662,12 +825,12 @@ function goToKidDashboard(kid, familyId) {
   state.kidId        = kid.id;
   state.kidDoc       = kid;
   state.familyIdKid  = familyId;
-  // save session
   localStorage.setItem("cq_kid_session", JSON.stringify({ kidId: kid.id, familyId }));
   applyKidTheme(kid.themeColor);
   refreshKidHeader();
   startKidListeners(familyId);
   showScreen("screen-kid-dashboard");
+  startReminderScheduler();
 }
 
 // ── Parent auth flow ──────────────────────────────────────
@@ -848,11 +1011,13 @@ function renderColorPicker() {
 async function saveKidCustomize() {
   if (!state.kidId || !state.familyIdKid) return;
   const nickname = document.getElementById("kid-nickname-input").value.trim();
+  const phone    = (document.getElementById("kid-phone-input")?.value || "").trim();
   try {
     await updateDoc(doc(db, "families", state.familyIdKid, "kids", state.kidId), {
       nickname: nickname || state.kidDoc.name,
       emoji: state.selectedAvatarEmoji,
-      themeColor: state.selectedThemeColor
+      themeColor: state.selectedThemeColor,
+      phone: phone || null
     });
     state.kidDoc.nickname    = nickname || state.kidDoc.name;
     state.kidDoc.emoji       = state.selectedAvatarEmoji;
@@ -954,8 +1119,9 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
-  // ── Parent logout ────────────────────────────────────────
+  // ── Parent logout & summary ──────────────────────────────
   document.getElementById("btn-parent-logout").addEventListener("click", parentLogout);
+  document.getElementById("btn-daily-summary").addEventListener("click", showDailySummary);
 
   // ── Manage actions ────────────────────────────────────────
   document.getElementById("btn-add-kid").addEventListener("click", () => {
@@ -1021,9 +1187,38 @@ document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("btn-save-kid").addEventListener("click",    addKid);
   document.getElementById("btn-cancel-chore").addEventListener("click",() => closeModal("modal-add-chore"));
   document.getElementById("btn-save-chore").addEventListener("click",  saveChore);
-  document.getElementById("btn-close-detail").addEventListener("click",() => closeModal("modal-chore-detail"));
+  document.getElementById("btn-close-detail").addEventListener("click", () => closeModal("modal-chore-detail"));
   document.getElementById("btn-cancel-customize").addEventListener("click", () => closeModal("modal-kid-customize"));
   document.getElementById("btn-save-customize").addEventListener("click", saveKidCustomize);
+
+  // ── Kid history & daily summary modals ────────────────────
+  document.getElementById("btn-close-kid-history").addEventListener("click", () => closeModal("modal-kid-history"));
+  document.getElementById("btn-close-summary").addEventListener("click", () => closeModal("modal-daily-summary"));
+
+  // ── Parent phone save ─────────────────────────────────────
+  const savePhoneBtn = document.getElementById("btn-save-parent-phone");
+  if (savePhoneBtn) {
+    savePhoneBtn.addEventListener("click", async () => {
+      const phone = document.getElementById("parent-phone-input")?.value.trim() || "";
+      if (!state.familyId) return;
+      try {
+        await updateDoc(doc(db, "families", state.familyId), { parentPhone: phone });
+        if (state.familyDoc) state.familyDoc.parentPhone = phone;
+        const msg = document.getElementById("parent-phone-msg");
+        if (msg) { msg.textContent = "Saved!"; setTimeout(() => { msg.textContent = ""; }, 2000); }
+      } catch(e) { console.error(e); }
+    });
+  }
+
+  // ── Enable notifications ──────────────────────────────────
+  const notifKidBtn = document.getElementById("btn-enable-kid-notifs");
+  if (notifKidBtn) {
+    if (Notification.permission === "granted") notifKidBtn.textContent = "✅ Notifications On";
+    notifKidBtn.addEventListener("click", async () => {
+      const ok = await requestNotificationPermission();
+      notifKidBtn.textContent = ok ? "✅ Notifications On" : "Blocked — check browser settings";
+    });
+  }
 
   // ── Close modals by clicking overlay ──────────────────────
   document.querySelectorAll(".modal-overlay").forEach(overlay => {

@@ -984,5 +984,90 @@ html, body {
   animation: tile-illuminate 0.5s cubic-bezier(0.34,1.56,0.64,1) forwards;
 }
 
+/* ═══ VIEW KID BUTTON ═══════════════════════════════════ */
+.btn-view-kid {
+  background: rgba(139,124,248,0.15);
+  color: var(--accent);
+  border: 1px solid rgba(139,124,248,0.3);
+  border-radius: 20px;
+  padding: 4px 12px;
+  font-family: var(--font);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: var(--transition);
+}
+.btn-view-kid:hover { background: rgba(139,124,248,0.25); }
+
+/* ═══ KID HISTORY MODAL ══════════════════════════════════ */
+.hist-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-muted);
+  margin: 14px 0 6px;
+}
+.hist-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  margin-bottom: 4px;
+  font-size: 14px;
+  gap: 8px;
+}
+.hist-item.done { background: rgba(76,217,100,0.08); border: 1px solid rgba(76,217,100,0.15); }
+.hist-item.todo { background: rgba(255,255,255,0.04); border: 1px solid var(--glass-border); color: var(--text-muted); }
+.hist-pts { font-size: 12px; font-weight: 600; color: var(--accent-green); white-space: nowrap; }
+.hist-time { font-size: 11px; color: var(--text-dim); white-space: nowrap; }
+.btn-undo-hist {
+  background: transparent;
+  color: var(--accent-amber);
+  border: 1px solid rgba(245,166,35,0.3);
+  border-radius: 16px;
+  padding: 3px 10px;
+  font-family: var(--font);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+/* ═══ DAILY SUMMARY ══════════════════════════════════════ */
+.sum-overall {
+  background: linear-gradient(135deg, rgba(139,124,248,0.2), rgba(139,124,248,0.08));
+  border: 1px solid rgba(139,124,248,0.25);
+  border-radius: var(--radius-md);
+  padding: 14px;
+  text-align: center;
+  margin-bottom: 16px;
+  font-size: 15px;
+  line-height: 1.5;
+}
+.sum-kid { margin-bottom: 16px; }
+.sum-kid-hdr { font-size: 14px; font-weight: 600; margin-bottom: 6px; }
+.sum-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  margin: 6px 0 4px;
+}
+.sum-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  border-radius: 8px;
+  margin-bottom: 3px;
+  font-size: 13px;
+}
+.sum-row.done { background: rgba(76,217,100,0.08); }
+.sum-row.todo { background: rgba(255,255,255,0.04); color: var(--text-muted); }
+
 /* ═══ UTILITY ════════════════════════════════════════════ */
 .hidden { display: none !important; }
