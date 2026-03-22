@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ChoreQuest — Family Chore Manager</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+</head>
+<body>
+
+<!-- ===== LOADING SCREEN ===== -->
+<div id="loading-screen" class="screen active">
+  <div class="loading-logo">
+    <div class="logo-icon">✨</div>
+    <h1>ChoreQuest</h1>
+    <p>Family Chore Manager</p>
+    <div class="spinner"></div>
+  </div>
+</div>
+
+<!-- ===== AUTH SCREEN ===== -->
+<div id="auth-screen" class="screen">
+  <div class="auth-container">
+    <div class="auth-header">
+      <div class="logo-icon large">✨</div>
+      <h1>ChoreQuest</h1>
+      <p>Make chores an adventure</p>
+    </div>
+    <div class="auth-tabs">
+      <button class="tab-btn active" data-tab="login">Log In</button>
+      <button class="tab-btn" data-tab="signup">Sign Up</button>
+    </div>
+    <div id="login-form" class="auth-form active">
+      <input type="email" id="login-email" placeholder="Email address" class="input-field" />
+      <input type="password" id="login-password" placeholder="Password" class="input-field" />
+      <button class="btn-primary full-width" id="login-btn">Log In</button>
+      <div class="divider"><span>or</span></div>
+      <button class="btn-google full-width" id="google-login-btn">
+        <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/></svg>
+        Continue with Google
+      </button>
+    </div>
+    <div id="signup-form" class="auth-form">
+      <input type="text" id="signup-name" placeholder="Your name" class="input-field" />
+      <input type="email" id="signup-email" placeholder="Email address" class="input-field" />
+      <input type="password" id="signup-password" placeholder="Password (min 6 chars)" class="input-field" />
+      <button class="btn-primary full-width" id="signup-btn">Create Parent Account</button>
+      <div class="divider"><span>or</span></div>
+      <button class="btn-google full-width" id="google-signup-btn">
+        <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/></svg>
+        Sign up with Google
+      </button>
+    </div>
+    <p class="auth-footer">Are you a kid? <a href="#" id="kid-login-link">Join your family</a></p>
+  </div>
+</div>
+
+<!-- ===== KID JOIN SCREEN ===== -->
+<div id="kid-join-screen" class="screen">
+  <div class="auth-container">
+    <div class="auth-header">
+      <div class="logo-icon large">🚀</div>
+      <h1>Join Your Family</h1>
+      <p>Pick your name and set a PIN</p>
+    </div>
+    <div id="join-family-lookup">
+      <input type="text" id="join-code-input" placeholder="Enter family invite code" class="input-field" />
+      <button class="btn-primary full-width" id="find-family-btn">Find My Family</button>
+      <button class="btn-ghost full-width mt-8" id="back-to-auth-btn">Back to Login</button>
+    </div>
+    <div id="join-family-select" style="display:none;">
+      <h3 id="join-family-name" class="family-name-label"></h3>
+      <p class="helper-text">Who are you?</p>
+      <div id="kid-select-list" class="kid-select-list"></div>
+      <button class="btn-ghost full-width mt-8" id="back-to-code-btn">Back</button>
+    </div>
+    <div id="join-set-pin" style="display:none;">
+      <div id="joining-kid-display" class="joining-kid-display"></div>
+      <p class="helper-text">Set a 4-digit PIN to log in</p>
+      <div class="pin-inputs">
+        <input type="tel" maxlength="1" class="pin-digit" data-index="0" />
+        <input type="tel" maxlength="1" class="pin-digit" data-index="1" />
+        <input type="tel" maxlength="1" class="pin-digit" data-index="2" />
+        <input type="tel" maxlength="1" class="pin-digit" data-index="3" />
+      </div>
+      <button class="btn-primary full-width mt-16" id="set-pin-btn">Join Family! 🎉</button>
+      <button class="btn-ghost full-width mt-8" id="back-to-select-btn">Back</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== KID PIN LOGIN SCREEN ===== -->
+<div id="kid-pin-screen" class="screen">
+  <div class="auth-container">
+    <div class="auth-header">
+      <div id="kid-pin-emoji" class="logo-icon large">👦</div>
+      <h1 id="kid-pin-name">Welcome back!</h1>
+      <p>Enter your PIN</p>
+    </div>
+    <div class="pin-inputs">
+      <input type="tel" maxlength="1" class="pin-digit login-pin" data-index="0" />
+      <input type="tel" maxlength="1" class="pin-digit login-pin" data-index="1" />
+      <input type="tel" maxlength="1" class="pin-digit login-pin" data-index="2" />
+      <input type="tel" maxlength="1" class="pin-digit login-pin" data-index="3" />
+    </div>
+    <p id="pin-error" class="error-msg" style="display:none;">Wrong PIN. Try again!</p>
+    <button class="btn-primary full-width mt-16" id="verify-pin-btn">Let's Go! 🚀</button>
+    <button class="btn-ghost full-width mt-8" id="switch-kid-btn">Switch Kid</button>
+    <button class="btn-ghost full-width" id="back-to-main-auth">Back to Login</button>
+  </div>
+</div>
+
+<!-- ===== SETUP FAMILY SCREEN ===== -->
+<div id="setup-screen" class="screen">
+  <div class="auth-container">
+    <div class="auth-header">
+      <div class="logo-icon large">🏠</div>
+      <h1>Create Your Family</h1>
+      <p>Set up your family's ChoreQuest</p>
+    </div>
+    <input type="text" id="family-name-input" placeholder="Family name (e.g. The Smiths)" class="input-field" />
+    <button class="btn-primary full-width" id="create-family-btn">Create Family</button>
+  </div>
+</div>
+
+<!-- ===== PARENT DASHBOARD ===== -->
+<div id="parent-screen" class="screen">
+  <!-- Top Nav -->
+  <nav class="top-nav">
+    <div class="nav-logo">✨ ChoreQuest</div>
+    <div id="family-name-nav" class="family-name-badge"></div>
+    <button class="btn-icon" id="parent-menu-btn">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="4" r="1.5" fill="currentColor"/><circle cx="10" cy="10" r="1.5" fill="currentColor"/><circle cx="10" cy="16" r="1.5" fill="currentColor"/></svg>
+    </button>
+  </nav>
+
+  <!-- Parent Nav Tabs -->
+  <div class="parent-tabs">
+    <button class="ptab active" data-view="overview">Overview</button>
+    <button class="ptab" data-view="chores">Chores</button>
+    <button class="ptab" data-view="kids">Kids</button>
+    <button class="ptab" data-view="approvals">Approvals <span id="pending-badge" class="badge" style="display:none;"></span></button>
+  </div>
+
+  <!-- Overview View -->
+  <div id="view-overview" class="parent-view active">
+    <div class="view-content">
+      <div class="stats-grid" id="family-stats-grid"></div>
+      <h2 class="section-title">Family Members</h2>
+      <div id="kids-overview-list" class="kids-overview-list"></div>
+      <h2 class="section-title">Today's Chores</h2>
+      <div id="todays-chores-list" class="chores-list"></div>
+    </div>
+  </div>
+
+  <!-- Chores View -->
+  <div id="view-chores" class="parent-view">
+    <div class="view-content">
+      <div class="view-header">
+        <h2>Chores</h2>
+        <button class="btn-primary small" id="add-chore-btn">+ Add Chore</button>
+      </div>
+      <div id="chores-filter" class="filter-pills">
+        <button class="pill active" data-filter="all">All</button>
+        <button class="pill" data-filter="daily">Daily</button>
+        <button class="pill" data-filter="weekly">Weekly</button>
+        <button class="pill" data-filter="monthly">Monthly</button>
+      </div>
+      <div id="all-chores-list" class="chores-list"></div>
+    </div>
+  </div>
+
+  <!-- Kids View -->
+  <div id="view-kids" class="parent-view">
+    <div class="view-content">
+      <div class="view-header">
+        <h2>Kids</h2>
+        <button class="btn-primary small" id="add-kid-btn">+ Add Kid</button>
+      </div>
+      <div id="kids-management-list" class="kids-management-list"></div>
+      <div class="invite-section">
+        <h3>Invite Link</h3>
+        <p class="helper-text">Share this link with your kids so they can join ChoreQuest</p>
+        <div id="invite-link-display" class="invite-link-box"></div>
+        <div class="invite-actions">
+          <button class="btn-secondary" id="copy-invite-btn">Copy Link</button>
+          <button class="btn-secondary" id="regen-invite-btn">New Code</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Approvals View -->
+  <div id="view-approvals" class="parent-view">
+    <div class="view-content">
+      <h2>Pending Approvals</h2>
+      <div id="approvals-list" class="approvals-list"></div>
+      <h2 class="section-title mt-24">History</h2>
+      <div id="history-list" class="approvals-list"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== KID DASHBOARD ===== -->
+<div id="kid-screen" class="screen">
+  <!-- Kid Nav -->
+  <nav class="kid-nav" id="kid-top-nav">
+    <div class="kid-nav-info">
+      <span id="kid-nav-emoji" class="kid-nav-emoji">👦</span>
+      <span id="kid-nav-name">My Chores</span>
+    </div>
+    <div class="kid-nav-right">
+      <div class="points-pill" id="kid-points-display">⭐ 0</div>
+      <button class="btn-icon" id="kid-menu-btn">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="4" r="1.5" fill="currentColor"/><circle cx="10" cy="10" r="1.5" fill="currentColor"/><circle cx="10" cy="16" r="1.5" fill="currentColor"/></svg>
+      </button>
+    </div>
+  </nav>
+
+  <!-- Kid Tabs -->
+  <div class="kid-tabs" id="kid-tabs-bar">
+    <button class="ktab active" data-view="kid-chores">My Chores</button>
+    <button class="ktab" data-view="kid-profile">Profile</button>
+    <button class="ktab" data-view="kid-badges">Badges</button>
+  </div>
+
+  <!-- Kid Chores View -->
+  <div id="view-kid-chores" class="kid-view active">
+    <div class="view-content">
+      <div class="kid-greeting" id="kid-greeting-banner"></div>
+      <div class="streak-card" id="kid-streak-card"></div>
+      <h2 class="section-title">Today's Tasks</h2>
+      <div id="kid-chores-today" class="chores-list kid-chores"></div>
+      <h2 class="section-title mt-16">All Tasks</h2>
+      <div id="kid-chores-all" class="chores-list kid-chores"></div>
+    </div>
+  </div>
+
+  <!-- Kid Profile View -->
+  <div id="view-kid-profile" class="kid-view">
+    <div class="view-content">
+      <div class="profile-hero" id="kid-profile-hero"></div>
+      <div class="profile-form">
+        <label class="form-label">Nickname</label>
+        <input type="text" id="kid-nickname-input" placeholder="Your cool nickname" class="input-field" />
+        <label class="form-label mt-8">Choose your emoji</label>
+        <div class="emoji-picker" id="kid-emoji-picker"></div>
+        <label class="form-label mt-8">Theme color</label>
+        <div class="color-picker" id="kid-color-picker"></div>
+        <button class="btn-primary full-width mt-16" id="save-profile-btn">Save Profile</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Kid Badges View -->
+  <div id="view-kid-badges" class="kid-view">
+    <div class="view-content">
+      <div class="badges-header">
+        <h2>Achievements</h2>
+        <div id="total-points-display" class="total-points"></div>
+      </div>
+      <div id="badges-grid" class="badges-grid"></div>
+      <h2 class="section-title mt-24">My History</h2>
+      <div id="kid-history-list" class="chores-list"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODALS ===== -->
+<!-- Add Chore Modal -->
+<div id="modal-add-chore" class="modal-overlay" style="display:none;">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="chore-modal-title">Add Chore</h3>
+      <button class="modal-close" data-modal="modal-add-chore">✕</button>
+    </div>
+    <input type="hidden" id="edit-chore-id" />
+    <label class="form-label">Chore Name</label>
+    <input type="text" id="chore-name-input" placeholder="e.g. Take out trash" class="input-field" />
+    <label class="form-label mt-8">Description</label>
+    <textarea id="chore-desc-input" placeholder="What needs to be done?" class="input-field textarea"></textarea>
+    <label class="form-label mt-8">Points</label>
+    <input type="number" id="chore-points-input" placeholder="e.g. 10" min="1" max="100" class="input-field" />
+    <label class="form-label mt-8">Frequency</label>
+    <select id="chore-freq-input" class="input-field select-field">
+      <option value="daily">Daily</option>
+      <option value="weekly">Weekly</option>
+      <option value="monthly">Monthly</option>
+    </select>
+    <label class="form-label mt-8">Assign To</label>
+    <div id="chore-assign-list" class="assign-list"></div>
+    <div class="modal-actions">
+      <button class="btn-ghost" data-modal="modal-add-chore">Cancel</button>
+      <button class="btn-primary" id="save-chore-btn">Save Chore</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Kid Modal -->
+<div id="modal-add-kid" class="modal-overlay" style="display:none;">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Add Kid</h3>
+      <button class="modal-close" data-modal="modal-add-kid">✕</button>
+    </div>
+    <label class="form-label">Name</label>
+    <input type="text" id="kid-name-input" placeholder="Kid's name" class="input-field" />
+    <label class="form-label mt-8">Age</label>
+    <input type="number" id="kid-age-input" placeholder="Age" min="2" max="18" class="input-field" />
+    <label class="form-label mt-8">Avatar Emoji</label>
+    <div class="emoji-picker" id="new-kid-emoji-picker"></div>
+    <div class="modal-actions">
+      <button class="btn-ghost" data-modal="modal-add-kid">Cancel</button>
+      <button class="btn-primary" id="save-kid-btn">Add Kid</button>
+    </div>
+  </div>
+</div>
+
+<!-- Kid Details Modal -->
+<div id="modal-kid-details" class="modal-overlay" style="display:none;">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Kid Details</h3>
+      <button class="modal-close" data-modal="modal-kid-details">✕</button>
+    </div>
+    <div id="kid-details-content"></div>
+    <div class="modal-actions">
+      <button class="btn-danger" id="remove-kid-btn">Remove Kid</button>
+      <button class="btn-ghost" data-modal="modal-kid-details">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Dropdown Menu -->
+<div id="dropdown-menu" class="dropdown-menu" style="display:none;">
+  <div id="dropdown-items"></div>
+</div>
+
+<!-- Toast Notification -->
+<div id="toast" class="toast" style="display:none;"></div>
+
+<!-- Confirm Dialog -->
+<div id="confirm-dialog" class="modal-overlay" style="display:none;">
+  <div class="modal small">
+    <h3 id="confirm-title">Are you sure?</h3>
+    <p id="confirm-message" class="helper-text"></p>
+    <div class="modal-actions">
+      <button class="btn-ghost" id="confirm-cancel">Cancel</button>
+      <button class="btn-danger" id="confirm-ok">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<!-- Chore Done Celebration -->
+<div id="celebration" class="celebration" style="display:none;">
+  <div class="celebration-inner">
+    <div class="celebration-emoji">🎉</div>
+    <h2>Awesome job!</h2>
+    <p id="celebration-text"></p>
+    <button class="btn-primary" id="celebration-close">Keep going!</button>
+  </div>
+</div>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>
