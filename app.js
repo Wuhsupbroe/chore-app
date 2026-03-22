@@ -1,4 +1,7 @@
-// ===== FIREBASE =====
+// ═══════════════════════════════════════════════════════
+//  ChoreQuest — app.js
+// ═══════════════════════════════════════════════════════
+
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
   getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword,
@@ -6,971 +9,1054 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {
   getFirestore, doc, getDoc, setDoc, addDoc, updateDoc, deleteDoc,
-  collection, query, where, onSnapshot, getDocs, serverTimestamp
+  collection, query, where, getDocs, onSnapshot, serverTimestamp, orderBy
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-const firebaseConfig = {
+// ── Firebase init ────────────────────────────────────────
+const app = initializeApp({
   apiKey: "AIzaSyDkrzifUy1sCGvuniL312Pp7Lh13Wt2DKI",
   authDomain: "login-app-b0f88.firebaseapp.com",
   projectId: "login-app-b0f88",
   storageBucket: "login-app-b0f88.firebasestorage.app",
   messagingSenderId: "760154109686",
   appId: "1:760154109686:web:42670bf2f61ed599b89ed7"
-};
-
-const app = initializeApp(firebaseConfig);
+});
 const auth = getAuth(app);
-const db = getFirestore(app);
-const googleProvider = new GoogleAuthProvider();
+const db   = getFirestore(app);
 
-// ===== CONSTANTS =====
-const EMOJIS = ['🧒','👦','👧','🧑','👱','🧔','👩','🧒‍♂️','🐶','🐱','🦊','🐻','🐼','🦁','🐯','🐸','🐧','🦋','🌟','⚡','🌈','🎮','🚀','🏆','🎯'];
-
-const BADGES = [
-  { id: 'first',   icon: '🌱', name: 'First Step',       desc: 'Complete 1 chore',    check: (s) => s.total >= 1 },
-  { id: 'five',    icon: '⭐', name: 'Rising Star',       desc: 'Complete 5 chores',   check: (s) => s.total >= 5 },
-  { id: 'ten',     icon: '🔥', name: 'On Fire',           desc: 'Complete 10 chores',  check: (s) => s.total >= 10 },
-  { id: 'pts50',   icon: '💰', name: 'Points Collector',  desc: 'Earn 50 points',      check: (s) => s.points >= 50 },
-  { id: 'pts100',  icon: '💎', name: 'Century Club',      desc: 'Earn 100 points',     check: (s) => s.points >= 100 },
-  { id: 'streak3', icon: '🔗', name: 'On a Roll',         desc: '3-day streak',        check: (s) => s.streak >= 3 },
-  { id: 'streak7', icon: '📅', name: 'Week Warrior',      desc: '7-day streak',        check: (s) => s.streak >= 7 },
-  { id: 'champ',   icon: '🏆', name: 'Champion',          desc: 'Complete 50 chores',  check: (s) => s.total >= 50 },
-  { id: 'pts500',  icon: '👑', name: 'Legend',            desc: 'Earn 500 points',     check: (s) => s.points >= 500 },
+// ── Constants ────────────────────────────────────────────
+const KID_EMOJIS = [
+  "⭐","🦁","🐯","🦊","🐼","🐨","🐸","🦄","🐉","🦋","🐙","🦀",
+  "🌟","🚀","⚡","🎮","🎸","⚽","🏀","🎨","🌈","🍕","🎩","🔥",
+  "🐶","🐱","🐰","🐻","🦝","🦉","🦚","🐳","🐬","🦈","🦁","🐮"
+];
+const CHORE_EMOJIS = [
+  "🧹","🍽️","🗑️","🧺","🛏️","🧼","🌿","🐾","📚","🧽","🚿","🪥",
+  "🪣","🧴","🪟","🚪","🛁","🍳","🥗","🧹","🧸","🎒","👕","🪴",
+  "🔧","🧲","💻","📦","🎯","🌟","⭐","✨"
+];
+const THEME_COLORS = [
+  { name: "Violet",  hex: "#8b7cf8" },
+  { name: "Sky",     hex: "#38bdf8" },
+  { name: "Rose",    hex: "#fb7185" },
+  { name: "Amber",   hex: "#f59e0b" },
+  { name: "Emerald", hex: "#34d399" },
+  { name: "Orange",  hex: "#fb923c" },
+  { name: "Pink",    hex: "#f472b6" },
+  { name: "Cyan",    hex: "#22d3ee" },
+  { name: "Lime",    hex: "#a3e635" },
+  { name: "Fuchsia", hex: "#e879f9" },
+  { name: "Teal",    hex: "#2dd4bf" },
+  { name: "Red",     hex: "#f87171" },
 ];
 
-// ===== STATE =====
-const state = {
-  user: null,
-  familyId: null,
-  familyData: null,
-  kids: [],
-  chores: [],
-  completions: [],
-  currentKid: null,
-  currentKidData: null,
-  joinFamilyId: null,
-  joinSelectedKid: null,
-  isSignup: false,
-  listeners: [],   // unsubscribe fns
+// ── App State ────────────────────────────────────────────
+let state = {
+  // parent
+  parentUser:    null,
+  familyId:      null,
+  familyDoc:     null,
+  // kid session (localStorage-based)
+  kidId:         null,
+  kidDoc:        null,
+  familyIdKid:   null,
+  // live data
+  kids:          [],
+  chores:        [],
+  completions:   [],
+  // unsub listeners
+  unsubKids:      null,
+  unsubChores:    null,
+  unsubCompletions: null,
+  // chore modal editing
+  editingChoreId: null,
+  // selections in modals
+  selectedKidEmoji:   "⭐",
+  selectedChoreEmoji: "🧹",
+  selectedAssignedTo: [],
+  selectedAvatarEmoji: "⭐",
+  selectedThemeColor:  "#8b7cf8",
 };
 
-// ===== SCREEN NAV =====
+// ── Screen routing ────────────────────────────────────────
 function showScreen(id) {
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
   const el = document.getElementById(id);
-  if (el) el.classList.add('active');
+  if (el) el.classList.add("active");
 }
 
-// ===== TOAST =====
-let toastTimer;
-function toast(msg, type = '') {
-  const el = document.getElementById('toast');
-  el.textContent = msg;
-  el.className = 'toast' + (type ? ' ' + type : '');
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => el.classList.add('hidden'), 3000);
+// ── Modals ────────────────────────────────────────────────
+function openModal(id)  { document.getElementById(id).classList.remove("hidden"); }
+function closeModal(id) { document.getElementById(id).classList.add("hidden"); }
+
+// ── Helpers ──────────────────────────────────────────────
+function genCode(len = 6) {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  return Array.from({ length: len }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
 }
 
-// ===== MODAL =====
-function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
-function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
-
-// ===== TABS =====
-function setupTabs(navSelector) {
-  document.querySelectorAll(navSelector + ' .tab-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const tab = btn.dataset.tab;
-      const nav = btn.closest('.tab-nav');
-      const content = nav.nextElementSibling;
-      nav.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      content.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-      const panel = content.querySelector('#tab-' + tab);
-      if (panel) panel.classList.add('active');
-    });
-  });
+function hexToRgb(hex) {
+  const r = parseInt(hex.slice(1,3), 16);
+  const g = parseInt(hex.slice(3,5), 16);
+  const b = parseInt(hex.slice(5,7), 16);
+  return `${r},${g},${b}`;
 }
 
-// ===== HELPERS =====
-function randomCode(len = 6) {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  let code = '';
-  for (let i = 0; i < len; i++) code += chars[Math.floor(Math.random() * chars.length)];
-  return code;
-}
-
-function hashPin(pin) {
-  // Simple XOR hash for PIN (not cryptographic, fine for kid PINs)
-  let h = 0;
-  for (let i = 0; i < pin.length; i++) h = (h * 31 + pin.charCodeAt(i)) & 0xffffffff;
-  return h.toString(16);
-}
-
-function today() {
+function todayStr() {
   return new Date().toISOString().slice(0, 10);
 }
 
-function clearListeners() {
-  state.listeners.forEach(unsub => { try { unsub(); } catch(e){} });
-  state.listeners = [];
-}
-
-// ===== URL JOIN CODE =====
-function getJoinCodeFromURL() {
-  const params = new URLSearchParams(window.location.search);
-  return params.get('join') || '';
-}
-
-// ===== INIT =====
-setupTabs('#screen-parent-dashboard .tab-nav');
-setupTabs('#screen-kid-dashboard .tab-nav');
-
-// Close modals on overlay click
-document.querySelectorAll('.modal-overlay').forEach(overlay => {
-  overlay.addEventListener('click', (e) => {
-    if (e.target === overlay) overlay.classList.add('hidden');
-  });
-});
-document.querySelectorAll('.modal-close').forEach(btn => {
-  btn.addEventListener('click', () => closeModal(btn.dataset.modal));
-});
-
-// Build emoji pickers
-function buildEmojiPicker(containerId, selectedVal, onSelect) {
+// ── Emoji pickers ─────────────────────────────────────────
+function renderEmojiGrid(containerId, emojis, onSelect, initialSelected) {
   const container = document.getElementById(containerId);
   if (!container) return;
-  container.innerHTML = '';
-  EMOJIS.forEach(em => {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'emoji-opt' + (em === selectedVal ? ' selected' : '');
-    btn.textContent = em;
-    btn.addEventListener('click', () => {
-      container.querySelectorAll('.emoji-opt').forEach(b => b.classList.remove('selected'));
-      btn.classList.add('selected');
-      onSelect(em);
+  container.innerHTML = "";
+  emojis.forEach(e => {
+    const btn = document.createElement("button");
+    btn.className = "emoji-btn" + (e === initialSelected ? " selected" : "");
+    btn.textContent = e;
+    btn.type = "button";
+    btn.addEventListener("click", () => {
+      container.querySelectorAll(".emoji-btn").forEach(b => b.classList.remove("selected"));
+      btn.classList.add("selected");
+      onSelect(e);
     });
     container.appendChild(btn);
   });
 }
 
-// ===== AUTH SCREEN =====
-let isSignup = false;
-
-document.getElementById('btn-parent-role').addEventListener('click', () => {
-  showScreen('screen-parent-auth');
-});
-
-document.getElementById('auth-back').addEventListener('click', () => {
-  showScreen('screen-landing');
-});
-
-document.getElementById('auth-toggle-btn').addEventListener('click', () => {
-  isSignup = !isSignup;
-  document.getElementById('auth-title').textContent = isSignup ? 'Create account' : 'Welcome back';
-  document.getElementById('auth-subtitle').textContent = isSignup ? 'Sign up to manage your family' : 'Sign in to manage your family';
-  document.getElementById('auth-submit').textContent = isSignup ? 'Sign Up' : 'Sign In';
-  document.getElementById('auth-toggle-text').textContent = isSignup ? 'Already have an account?' : "Don't have an account?";
-  document.getElementById('auth-toggle-btn').textContent = isSignup ? 'Sign in' : 'Sign up';
-});
-
-document.getElementById('auth-form').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const email = document.getElementById('auth-email').value.trim();
-  const pass = document.getElementById('auth-password').value;
-  const btn = document.getElementById('auth-submit');
-  btn.disabled = true;
-  btn.textContent = '...';
-  try {
-    if (isSignup) {
-      await createUserWithEmailAndPassword(auth, email, pass);
-    } else {
-      await signInWithEmailAndPassword(auth, email, pass);
-    }
-  } catch (err) {
-    toast(friendlyAuthError(err.code), 'error');
-    btn.disabled = false;
-    btn.textContent = isSignup ? 'Sign Up' : 'Sign In';
-  }
-});
-
-document.getElementById('btn-google').addEventListener('click', async () => {
-  try {
-    await signInWithPopup(auth, googleProvider);
-  } catch (err) {
-    toast(friendlyAuthError(err.code), 'error');
-  }
-});
-
-function friendlyAuthError(code) {
-  if (code === 'auth/user-not-found' || code === 'auth/wrong-password' || code === 'auth/invalid-credential') return 'Invalid email or password.';
-  if (code === 'auth/email-already-in-use') return 'Email already in use.';
-  if (code === 'auth/weak-password') return 'Password must be at least 6 characters.';
-  if (code === 'auth/invalid-email') return 'Invalid email address.';
-  if (code === 'auth/popup-closed-by-user') return 'Sign-in cancelled.';
-  return 'Something went wrong. Please try again.';
-}
-
-// ===== AUTH STATE =====
-onAuthStateChanged(auth, async (user) => {
-  if (user) {
-    state.user = user;
-    // Find family for this parent
-    const q = query(collection(db, 'families'), where('ownerId', '==', user.uid));
-    const snap = await getDocs(q);
-    if (snap.empty) {
-      showScreen('screen-create-family');
-    } else {
-      const familyDoc = snap.docs[0];
-      state.familyId = familyDoc.id;
-      state.familyData = familyDoc.data();
-      loadParentDashboard();
-    }
-  } else {
-    state.user = null;
-    state.familyId = null;
-    state.familyData = null;
-    clearListeners();
-    // Don't forcibly go to landing if a kid is logged in
-    if (!state.currentKid) {
-      const kidSession = sessionStorage.getItem('kidSession');
-      if (!kidSession) showScreen('screen-landing');
-    }
-  }
-});
-
-// ===== CREATE FAMILY =====
-document.getElementById('family-form').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const name = document.getElementById('family-name-input').value.trim();
-  if (!name) return;
-  try {
-    const inviteCode = randomCode(6);
-    const ref = await addDoc(collection(db, 'families'), {
-      name,
-      ownerId: state.user.uid,
-      ownerEmail: state.user.email,
-      inviteCode,
-      createdAt: serverTimestamp()
-    });
-    state.familyId = ref.id;
-    state.familyData = { name, inviteCode };
-    toast('Family created!', 'success');
-    loadParentDashboard();
-  } catch (err) {
-    toast('Error creating family.', 'error');
-    console.error(err);
-  }
-});
-
-// ===== LOGOUT =====
-document.getElementById('btn-logout-parent').addEventListener('click', async () => {
-  clearListeners();
-  await signOut(auth);
-  showScreen('screen-landing');
-});
-
-document.getElementById('btn-logout-kid').addEventListener('click', () => {
-  sessionStorage.removeItem('kidSession');
-  state.currentKid = null;
-  state.currentKidData = null;
-  state.familyId = null;
-  state.familyData = null;
-  clearListeners();
-  showScreen('screen-landing');
-});
-
-// ===== PARENT DASHBOARD =====
-function loadParentDashboard() {
-  document.getElementById('topbar-family-name').textContent = state.familyData?.name || 'My Family';
-  document.getElementById('invite-code-display').textContent = state.familyData?.inviteCode || '------';
-  showScreen('screen-parent-dashboard');
-
-  // Reset tabs
-  document.querySelectorAll('#screen-parent-dashboard .tab-btn').forEach(b => b.classList.remove('active'));
-  document.querySelector('#screen-parent-dashboard .tab-btn[data-tab="kids"]').classList.add('active');
-  document.querySelectorAll('#screen-parent-dashboard .tab-panel').forEach(p => p.classList.remove('active'));
-  document.getElementById('tab-kids').classList.add('active');
-
-  clearListeners();
-  subscribeKids();
-  subscribeChores();
-  subscribeApprovals();
-}
-
-function subscribeKids() {
-  const q = collection(db, 'families', state.familyId, 'kids');
-  const unsub = onSnapshot(q, (snap) => {
-    state.kids = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    renderKids();
-  });
-  state.listeners.push(unsub);
-}
-
-function subscribeChores() {
-  const q = collection(db, 'families', state.familyId, 'chores');
-  const unsub = onSnapshot(q, (snap) => {
-    state.chores = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    renderChores();
-  });
-  state.listeners.push(unsub);
-}
-
-function subscribeApprovals() {
-  const q = query(
-    collection(db, 'families', state.familyId, 'completions'),
-    where('status', '==', 'pending')
-  );
-  const unsub = onSnapshot(q, (snap) => {
-    state.completions = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    renderApprovals();
-    const count = state.completions.length;
-    const badge = document.getElementById('approval-count');
-    if (count > 0) {
-      badge.textContent = count;
-      badge.classList.remove('hidden');
-    } else {
-      badge.classList.add('hidden');
-    }
-  });
-  state.listeners.push(unsub);
-}
-
-// ===== RENDER KIDS =====
-function renderKids() {
-  const list = document.getElementById('kids-list');
-  if (state.kids.length === 0) {
-    list.innerHTML = '<p class="empty-state">No kids yet. Add one!</p>';
+// ── Leaderboard render ────────────────────────────────────
+function renderLeaderboard(containerId, kids, completions) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  if (!kids.length) {
+    el.innerHTML = `<p class="empty-sm">No kids yet.</p>`;
     return;
   }
-  list.innerHTML = state.kids.map(kid => `
-    <div class="kid-card">
-      <span class="kid-card-avatar">${kid.emoji || '🧒'}</span>
-      <div class="kid-card-info">
-        <div class="kid-card-name">${kid.name}</div>
-        <div class="kid-card-meta">${kid.age ? `Age ${kid.age} · ` : ''}${kid.points || 0} pts</div>
+  const today = todayStr();
+  const weekAgo = new Date(Date.now() - 7*24*3600*1000).toISOString();
+
+  el.innerHTML = "";
+  const sorted = [...kids].sort((a, b) => (b.points || 0) - (a.points || 0));
+  sorted.forEach(kid => {
+    const kidCompletions = completions.filter(c =>
+      c.kidId === kid.id && c.status === "approved" &&
+      c.timestamp && c.timestamp.toDate && c.timestamp.toDate().toISOString() >= weekAgo
+    );
+    // chores assigned to this kid
+    const assigned = state.chores.filter(ch => (ch.assignedTo || []).includes(kid.id));
+    const total    = assigned.length || 1;
+    const done     = kidCompletions.length;
+    const pct      = Math.min(done / total, 1);
+    const color    = kid.themeColor || "#8b7cf8";
+    // SVG circle
+    const radius = 24, circ = 2 * Math.PI * radius;
+    const offset = circ * (1 - pct);
+
+    const div = document.createElement("div");
+    div.className = "leaderboard-kid";
+    div.innerHTML = `
+      <div class="lb-ring-wrap">
+        <svg width="60" height="60" viewBox="0 0 60 60">
+          <circle class="lb-ring-bg" cx="30" cy="30" r="${radius}"/>
+          <circle class="lb-ring-fill" cx="30" cy="30" r="${radius}"
+            stroke="${color}"
+            stroke-dasharray="${circ}"
+            stroke-dashoffset="${offset}"
+          />
+        </svg>
+        <div class="lb-avatar">${kid.emoji || "⭐"}</div>
       </div>
-      <div class="kid-card-actions">
-        <button class="btn-danger" onclick="removeKid('${kid.id}')">Remove</button>
-      </div>
-    </div>
-  `).join('');
-}
-
-window.removeKid = async (kidId) => {
-  if (!confirm('Remove this kid?')) return;
-  try {
-    await deleteDoc(doc(db, 'families', state.familyId, 'kids', kidId));
-    toast('Kid removed.', 'success');
-  } catch (err) {
-    toast('Error removing kid.', 'error');
-  }
-};
-
-// ===== ADD KID =====
-let selectedKidEmoji = '🧒';
-
-document.getElementById('btn-add-kid').addEventListener('click', () => {
-  selectedKidEmoji = '🧒';
-  document.getElementById('add-kid-form').reset();
-  document.getElementById('kid-emoji-selected').value = '🧒';
-  buildEmojiPicker('add-kid-emoji-picker', '🧒', (em) => {
-    selectedKidEmoji = em;
-    document.getElementById('kid-emoji-selected').value = em;
-  });
-  openModal('modal-add-kid');
-});
-
-document.getElementById('add-kid-form').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const name = document.getElementById('kid-name-input').value.trim();
-  const age = document.getElementById('kid-age-input').value;
-  const emoji = document.getElementById('kid-emoji-selected').value || '🧒';
-  if (!name) return;
-  try {
-    await addDoc(collection(db, 'families', state.familyId, 'kids'), {
-      name,
-      age: age ? parseInt(age) : null,
-      emoji,
-      points: 0,
-      streak: 0,
-      badges: [],
-      createdAt: serverTimestamp()
-    });
-    closeModal('modal-add-kid');
-    toast('Kid added!', 'success');
-  } catch (err) {
-    toast('Error adding kid.', 'error');
-    console.error(err);
-  }
-});
-
-// ===== RENDER CHORES =====
-function renderChores() {
-  const list = document.getElementById('chores-list');
-  if (state.chores.length === 0) {
-    list.innerHTML = '<p class="empty-state">No chores yet. Add one!</p>';
-    return;
-  }
-  list.innerHTML = state.chores.map(chore => {
-    const assigned = (chore.assignedTo || []).map(kidId => {
-      const kid = state.kids.find(k => k.id === kidId);
-      return kid ? kid.emoji : '';
-    }).join('');
-    return `
-      <div class="chore-card">
-        <span class="chore-card-icon">📋</span>
-        <div class="chore-card-info">
-          <div class="chore-card-name">${chore.name}</div>
-          <div class="chore-card-meta">
-            <span class="pts-badge">⭐ ${chore.points || 0} pts</span>
-            <span class="freq-badge">${chore.frequency || 'anytime'}</span>
-            ${assigned ? `<span>${assigned}</span>` : ''}
-          </div>
-        </div>
-        <div class="chore-card-actions">
-          <button class="btn-sm-primary" style="background:transparent;color:var(--accent);border:1.5px solid var(--accent)" onclick="editChore('${chore.id}')">Edit</button>
-          <button class="btn-danger" onclick="deleteChore('${chore.id}')">Del</button>
-        </div>
-      </div>
+      <div class="lb-name">${kid.nickname || kid.name}</div>
+      <div class="lb-pts">${kid.points || 0}</div>
     `;
-  }).join('');
-}
-
-window.editChore = (choreId) => {
-  const chore = state.chores.find(c => c.id === choreId);
-  if (!chore) return;
-  document.getElementById('edit-chore-id').value = choreId;
-  document.getElementById('chore-name-input').value = chore.name;
-  document.getElementById('chore-desc-input').value = chore.description || '';
-  document.getElementById('chore-points-input').value = chore.points || 10;
-  document.getElementById('chore-freq-input').value = chore.frequency || 'daily';
-  document.getElementById('chore-modal-title').textContent = 'Edit Chore';
-  buildAssignList(chore.assignedTo || []);
-  openModal('modal-add-chore');
-};
-
-window.deleteChore = async (choreId) => {
-  if (!confirm('Delete this chore?')) return;
-  try {
-    await deleteDoc(doc(db, 'families', state.familyId, 'chores', choreId));
-    toast('Chore deleted.', 'success');
-  } catch (err) {
-    toast('Error deleting chore.', 'error');
-  }
-};
-
-// ===== ADD/EDIT CHORE =====
-let selectedAssignees = [];
-
-function buildAssignList(preSelected = []) {
-  selectedAssignees = [...preSelected];
-  const container = document.getElementById('chore-assign-list');
-  if (state.kids.length === 0) {
-    container.innerHTML = '<p style="font-size:0.8rem;color:var(--text-secondary)">Add kids first</p>';
-    return;
-  }
-  container.innerHTML = '';
-  state.kids.forEach(kid => {
-    const chip = document.createElement('button');
-    chip.type = 'button';
-    chip.className = 'assign-chip' + (selectedAssignees.includes(kid.id) ? ' selected' : '');
-    chip.innerHTML = `${kid.emoji || '🧒'} ${kid.name}`;
-    chip.addEventListener('click', () => {
-      if (selectedAssignees.includes(kid.id)) {
-        selectedAssignees = selectedAssignees.filter(id => id !== kid.id);
-        chip.classList.remove('selected');
-      } else {
-        selectedAssignees.push(kid.id);
-        chip.classList.add('selected');
-      }
-    });
-    container.appendChild(chip);
+    el.appendChild(div);
   });
 }
 
-document.getElementById('btn-add-chore').addEventListener('click', () => {
-  document.getElementById('add-chore-form').reset();
-  document.getElementById('edit-chore-id').value = '';
-  document.getElementById('chore-points-input').value = 10;
-  document.getElementById('chore-modal-title').textContent = 'Add a Chore';
-  buildAssignList([]);
-  openModal('modal-add-chore');
-});
+// ── Chore grid render ─────────────────────────────────────
+function getChoreStatus(choreId, kidIds) {
+  // Find most recent completion for this chore for any of the given kids
+  const relevant = state.completions.filter(c =>
+    c.choreId === choreId && (!kidIds || kidIds.includes(c.kidId))
+  );
+  if (!relevant.length) return "incomplete";
+  const latest = relevant.sort((a, b) => {
+    const ta = a.timestamp?.toDate?.()?.getTime() || 0;
+    const tb = b.timestamp?.toDate?.()?.getTime() || 0;
+    return tb - ta;
+  })[0];
+  return latest.status; // pending | approved | rejected
+}
 
-document.getElementById('add-chore-form').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const choreId = document.getElementById('edit-chore-id').value;
-  const data = {
-    name: document.getElementById('chore-name-input').value.trim(),
-    description: document.getElementById('chore-desc-input').value.trim(),
-    points: parseInt(document.getElementById('chore-points-input').value) || 10,
-    frequency: document.getElementById('chore-freq-input').value,
-    assignedTo: selectedAssignees,
-    updatedAt: serverTimestamp()
-  };
-  if (!data.name) return;
+function renderParentChoreGrid() {
+  const grid = document.getElementById("parent-chore-grid");
+  if (!grid) return;
+  grid.innerHTML = "";
+  if (!state.chores.length) {
+    grid.innerHTML = `<div class="empty-chores"><span>🎯</span><p>No chores yet.<br/>Add some in Manage.</p></div>`;
+    return;
+  }
+  state.chores.forEach(chore => {
+    const status = getChoreStatus(chore.id, null);
+    const tile = document.createElement("button");
+    tile.className = "chore-tile";
+    if (status === "pending")  tile.classList.add("state-pending");
+    if (status === "approved") tile.classList.add("state-approved");
+    const assignedKid = state.kids.find(k => (chore.assignedTo || []).includes(k.id));
+    tile.innerHTML = `
+      ${status === "pending"  ? `<div class="tile-status-dot pending"></div>` : ""}
+      ${status === "approved" ? `<div class="tile-status-dot approved"></div>` : ""}
+      <div class="tile-freq-badge">${chore.frequency || "daily"}</div>
+      <div class="tile-emoji">${chore.emoji || "🧹"}</div>
+      <div class="tile-name">${chore.name}</div>
+      <div class="tile-meta">${assignedKid ? (assignedKid.emoji || "👤") + " " + (assignedKid.nickname || assignedKid.name) : "Unassigned"}</div>
+    `;
+    tile.addEventListener("click", () => openChoreDetail(chore, status));
+    grid.appendChild(tile);
+  });
+}
+
+function renderKidChoreGrid() {
+  const grid = document.getElementById("kid-chore-grid");
+  if (!grid || !state.kidId) return;
+  grid.innerHTML = "";
+  const myChores = state.chores.filter(ch => (ch.assignedTo || []).includes(state.kidId));
+  if (!myChores.length) {
+    grid.innerHTML = `<div class="empty-chores"><span>🌟</span><p>No chores assigned yet.<br/>Ask your parent!</p></div>`;
+    return;
+  }
+  const color = state.kidDoc?.themeColor || "#8b7cf8";
+  const rgb   = hexToRgb(color);
+  myChores.forEach(chore => {
+    const status = getChoreStatus(chore.id, [state.kidId]);
+    const tile = document.createElement("button");
+    tile.className = "chore-tile";
+    if (status === "pending")  {
+      tile.classList.add("state-pending");
+      tile.style.borderColor = `rgba(${hexToRgb("#f5a623")},0.4)`;
+    }
+    if (status === "approved") {
+      tile.style.background = `linear-gradient(135deg, rgba(${rgb},0.15), rgba(${rgb},0.05))`;
+      tile.style.borderColor = `rgba(${rgb},0.4)`;
+      tile.style.boxShadow   = `0 0 16px rgba(${rgb},0.15)`;
+    }
+    tile.innerHTML = `
+      ${status === "pending"  ? `<div class="tile-status-dot pending"></div>` : ""}
+      ${status === "approved" ? `<div class="tile-status-dot approved"></div>` : ""}
+      <div class="tile-freq-badge">${chore.frequency || "daily"}</div>
+      <div class="tile-emoji">${chore.emoji || "🧹"}</div>
+      <div class="tile-name">${chore.name}</div>
+      <div class="tile-meta">${chore.points || 10} pts</div>
+    `;
+    if (status === "incomplete" || status === "rejected") {
+      tile.addEventListener("click", () => markChoreDone(chore, tile));
+    } else {
+      tile.style.cursor = "default";
+    }
+    grid.appendChild(tile);
+  });
+}
+
+// ── Chore tile done animation ─────────────────────────────
+async function markChoreDone(chore, tile) {
+  if (!state.kidId || !state.familyIdKid) return;
+  tile.classList.add("just-done");
+  tile.disabled = true;
+  const color = state.kidDoc?.themeColor || "#8b7cf8";
+  const rgb = hexToRgb(color);
+  tile.style.background = `linear-gradient(135deg, rgba(${rgb},0.18), rgba(${rgb},0.06))`;
+  tile.style.borderColor = `rgba(${rgb},0.5)`;
+  tile.style.boxShadow   = `0 0 24px rgba(${rgb},0.3)`;
+  // Add pending dot
+  const dot = document.createElement("div");
+  dot.className = "tile-status-dot pending";
+  tile.insertBefore(dot, tile.firstChild);
+
   try {
-    if (choreId) {
-      await updateDoc(doc(db, 'families', state.familyId, 'chores', choreId), data);
-      toast('Chore updated!', 'success');
+    await addDoc(collection(db, "families", state.familyIdKid, "completions"), {
+      choreId: chore.id,
+      kidId: state.kidId,
+      timestamp: serverTimestamp(),
+      status: "pending"
+    });
+    renderKidChoreGrid();
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+// ── Parent chore detail modal ─────────────────────────────
+function openChoreDetail(chore, status) {
+  document.getElementById("detail-icon").textContent   = chore.emoji || "🧹";
+  document.getElementById("detail-name").textContent   = chore.name;
+  document.getElementById("detail-desc").textContent   = chore.description || "";
+  document.getElementById("detail-points").textContent = (chore.points || 10) + " pts";
+  document.getElementById("detail-freq").textContent   = chore.frequency || "daily";
+  const statusBadge = document.getElementById("detail-status-badge");
+  statusBadge.textContent = status;
+  statusBadge.className = "badge status-badge " + status;
+  const approveRow = document.getElementById("detail-approve-row");
+  if (status === "pending") {
+    approveRow.style.display = "flex";
+    // Find the pending completion
+    const pending = state.completions.find(c => c.choreId === chore.id && c.status === "pending");
+    document.getElementById("btn-approve-chore").onclick = () => approveCompletion(pending, chore);
+    document.getElementById("btn-reject-chore").onclick  = () => rejectCompletion(pending, chore);
+  } else {
+    approveRow.style.display = "none";
+  }
+  document.getElementById("btn-edit-chore").onclick   = () => { closeModal("modal-chore-detail"); openEditChore(chore); };
+  document.getElementById("btn-delete-chore").onclick = () => deleteChore(chore);
+  openModal("modal-chore-detail");
+}
+
+async function approveCompletion(completion, chore) {
+  if (!completion || !state.familyId) return;
+  try {
+    await updateDoc(doc(db, "families", state.familyId, "completions", completion.id), { status: "approved" });
+    // Add points to kid
+    const kid = state.kids.find(k => k.id === completion.kidId);
+    if (kid) {
+      await updateDoc(doc(db, "families", state.familyId, "kids", kid.id), {
+        points: (kid.points || 0) + (chore.points || 10)
+      });
+    }
+    closeModal("modal-chore-detail");
+  } catch(e) { console.error(e); }
+}
+
+async function rejectCompletion(completion) {
+  if (!completion || !state.familyId) return;
+  try {
+    await updateDoc(doc(db, "families", state.familyId, "completions", completion.id), { status: "rejected" });
+    closeModal("modal-chore-detail");
+  } catch(e) { console.error(e); }
+}
+
+// ── Manage lists ──────────────────────────────────────────
+function renderManageLists() {
+  renderKidsList();
+  renderChoresList();
+  renderStatusOverview();
+}
+
+function renderKidsList() {
+  const list = document.getElementById("kids-list");
+  if (!list) return;
+  list.innerHTML = "";
+  if (!state.kids.length) {
+    list.innerHTML = `<p class="empty-sm">No kids added yet.</p>`;
+    return;
+  }
+  state.kids.forEach(kid => {
+    const item = document.createElement("div");
+    item.className = "manage-item";
+    item.innerHTML = `
+      <div class="manage-item-emoji">${kid.emoji || "⭐"}</div>
+      <div class="manage-item-info">
+        <div class="manage-item-name">${kid.nickname || kid.name}</div>
+        <div class="manage-item-sub">Age ${kid.age || "?"} · ${kid.points || 0} pts</div>
+      </div>
+      <button class="manage-item-action" title="Remove kid" data-id="${kid.id}">×</button>
+    `;
+    item.querySelector(".manage-item-action").addEventListener("click", e => {
+      e.stopPropagation();
+      if (confirm(`Remove ${kid.name}?`)) removeKid(kid.id);
+    });
+    list.appendChild(item);
+  });
+}
+
+function renderChoresList() {
+  const list = document.getElementById("chores-list");
+  if (!list) return;
+  list.innerHTML = "";
+  if (!state.chores.length) {
+    list.innerHTML = `<p class="empty-sm">No chores added yet.</p>`;
+    return;
+  }
+  state.chores.forEach(chore => {
+    const assignedNames = (chore.assignedTo || [])
+      .map(id => state.kids.find(k => k.id === id))
+      .filter(Boolean)
+      .map(k => k.nickname || k.name)
+      .join(", ") || "Unassigned";
+    const item = document.createElement("div");
+    item.className = "manage-item";
+    item.innerHTML = `
+      <div class="manage-item-emoji">${chore.emoji || "🧹"}</div>
+      <div class="manage-item-info">
+        <div class="manage-item-name">${chore.name}</div>
+        <div class="manage-item-sub">${chore.points || 10} pts · ${chore.frequency || "daily"} · ${assignedNames}</div>
+      </div>
+      <button class="manage-item-action" title="Delete chore" data-id="${chore.id}">×</button>
+    `;
+    item.addEventListener("click", e => {
+      if (!e.target.closest(".manage-item-action")) openEditChore(chore);
+    });
+    item.querySelector(".manage-item-action").addEventListener("click", e => {
+      e.stopPropagation();
+      if (confirm(`Delete "${chore.name}"?`)) deleteChore(chore);
+    });
+    list.appendChild(item);
+  });
+}
+
+function renderStatusOverview() {
+  const el = document.getElementById("status-overview");
+  if (!el) return;
+  const pending = state.completions.filter(c => c.status === "pending");
+  if (!pending.length) {
+    el.innerHTML = `<p class="empty-sm">All caught up! 🎉</p>`;
+    return;
+  }
+  const byKid = {};
+  pending.forEach(c => {
+    byKid[c.kidId] = (byKid[c.kidId] || 0) + 1;
+  });
+  el.innerHTML = Object.entries(byKid).map(([kidId, count]) => {
+    const kid = state.kids.find(k => k.id === kidId);
+    const name = kid ? (kid.nickname || kid.name) : "Unknown";
+    return `<p class="empty-sm">${kid?.emoji || "👤"} ${name} — <strong style="color:var(--accent-amber)">${count} pending</strong></p>`;
+  }).join("");
+}
+
+// ── Kid CRUD ──────────────────────────────────────────────
+async function addKid() {
+  const name  = document.getElementById("kid-name-input").value.trim();
+  const age   = parseInt(document.getElementById("kid-age-input").value) || 0;
+  const errEl = document.getElementById("add-kid-error");
+  errEl.textContent = "";
+  if (!name) { errEl.textContent = "Enter a name."; return; }
+  if (!state.familyId) return;
+  try {
+    await addDoc(collection(db, "families", state.familyId, "kids"), {
+      name, age,
+      emoji: state.selectedKidEmoji,
+      themeColor: "#8b7cf8",
+      points: 0, streak: 0, badges: [],
+      createdAt: serverTimestamp()
+    });
+    closeModal("modal-add-kid");
+    document.getElementById("kid-name-input").value = "";
+    document.getElementById("kid-age-input").value  = "";
+  } catch(e) { errEl.textContent = e.message; }
+}
+
+async function removeKid(kidId) {
+  if (!state.familyId) return;
+  try {
+    await deleteDoc(doc(db, "families", state.familyId, "kids", kidId));
+  } catch(e) { console.error(e); }
+}
+
+// ── Chore CRUD ────────────────────────────────────────────
+function openAddChore() {
+  state.editingChoreId = null;
+  document.getElementById("chore-modal-title").textContent = "New Chore";
+  document.getElementById("chore-name-input").value   = "";
+  document.getElementById("chore-desc-input").value   = "";
+  document.getElementById("chore-points-input").value = "10";
+  document.getElementById("chore-freq-input").value   = "daily";
+  document.getElementById("add-chore-error").textContent = "";
+  state.selectedChoreEmoji = "🧹";
+  state.selectedAssignedTo = [];
+  renderEmojiGrid("chore-emoji-picker", CHORE_EMOJIS, e => { state.selectedChoreEmoji = e; }, "🧹");
+  renderAssignList();
+  openModal("modal-add-chore");
+}
+
+function openEditChore(chore) {
+  state.editingChoreId = chore.id;
+  document.getElementById("chore-modal-title").textContent = "Edit Chore";
+  document.getElementById("chore-name-input").value   = chore.name || "";
+  document.getElementById("chore-desc-input").value   = chore.description || "";
+  document.getElementById("chore-points-input").value = chore.points || 10;
+  document.getElementById("chore-freq-input").value   = chore.frequency || "daily";
+  document.getElementById("add-chore-error").textContent = "";
+  state.selectedChoreEmoji = chore.emoji || "🧹";
+  state.selectedAssignedTo = [...(chore.assignedTo || [])];
+  renderEmojiGrid("chore-emoji-picker", CHORE_EMOJIS, e => { state.selectedChoreEmoji = e; }, state.selectedChoreEmoji);
+  renderAssignList();
+  openModal("modal-add-chore");
+}
+
+function renderAssignList() {
+  const el = document.getElementById("assign-kids-list");
+  if (!el) return;
+  el.innerHTML = "";
+  if (!state.kids.length) {
+    el.innerHTML = `<p class="empty-sm">No kids yet. Add kids first.</p>`;
+    return;
+  }
+  state.kids.forEach(kid => {
+    const selected = state.selectedAssignedTo.includes(kid.id);
+    const item = document.createElement("div");
+    item.className = "assign-item" + (selected ? " selected" : "");
+    item.innerHTML = `
+      <div class="assign-check">${selected ? "✓" : ""}</div>
+      <span style="font-size:20px;">${kid.emoji || "⭐"}</span>
+      <span style="font-size:14px;font-weight:600;">${kid.nickname || kid.name}</span>
+    `;
+    item.addEventListener("click", () => {
+      if (state.selectedAssignedTo.includes(kid.id)) {
+        state.selectedAssignedTo = state.selectedAssignedTo.filter(id => id !== kid.id);
+      } else {
+        state.selectedAssignedTo.push(kid.id);
+      }
+      renderAssignList();
+    });
+    el.appendChild(item);
+  });
+}
+
+async function saveChore() {
+  const name   = document.getElementById("chore-name-input").value.trim();
+  const desc   = document.getElementById("chore-desc-input").value.trim();
+  const points = parseInt(document.getElementById("chore-points-input").value) || 10;
+  const freq   = document.getElementById("chore-freq-input").value;
+  const errEl  = document.getElementById("add-chore-error");
+  errEl.textContent = "";
+  if (!name) { errEl.textContent = "Enter a chore name."; return; }
+  if (!state.familyId) return;
+  const data = {
+    name, description: desc, points, frequency: freq,
+    emoji: state.selectedChoreEmoji,
+    assignedTo: state.selectedAssignedTo
+  };
+  try {
+    if (state.editingChoreId) {
+      await updateDoc(doc(db, "families", state.familyId, "chores", state.editingChoreId), data);
     } else {
       data.createdAt = serverTimestamp();
-      await addDoc(collection(db, 'families', state.familyId, 'chores'), data);
-      toast('Chore added!', 'success');
+      await addDoc(collection(db, "families", state.familyId, "chores"), data);
     }
-    closeModal('modal-add-chore');
-  } catch (err) {
-    toast('Error saving chore.', 'error');
-    console.error(err);
-  }
-});
-
-// ===== APPROVALS =====
-function renderApprovals() {
-  const list = document.getElementById('approvals-list');
-  if (state.completions.length === 0) {
-    list.innerHTML = '<p class="empty-state">Nothing to approve yet.</p>';
-    return;
-  }
-  list.innerHTML = state.completions.map(comp => {
-    const kid = state.kids.find(k => k.id === comp.kidId);
-    const chore = state.chores.find(c => c.id === comp.choreId);
-    return `
-      <div class="approval-card">
-        <div class="approval-card-header">
-          <span style="font-size:1.6rem">${kid?.emoji || '🧒'}</span>
-          <div class="approval-card-info">
-            <div class="approval-card-chore">${chore?.name || 'Unknown chore'}</div>
-            <div class="approval-card-kid">${kid?.name || 'Unknown kid'} · ⭐ ${chore?.points || 0} pts</div>
-          </div>
-        </div>
-        <div class="approval-card-actions">
-          <button class="btn-approve" onclick="approveCompletion('${comp.id}', '${comp.kidId}', ${chore?.points || 0})">✓ Approve</button>
-          <button class="btn-reject" onclick="rejectCompletion('${comp.id}')">✕ Reject</button>
-        </div>
-      </div>
-    `;
-  }).join('');
+    closeModal("modal-add-chore");
+    closeModal("modal-chore-detail");
+  } catch(e) { errEl.textContent = e.message; }
 }
 
-window.approveCompletion = async (compId, kidId, points) => {
+async function deleteChore(chore) {
+  if (!state.familyId) return;
+  if (!confirm(`Delete "${chore.name}"?`)) return;
   try {
-    await updateDoc(doc(db, 'families', state.familyId, 'completions', compId), {
-      status: 'approved',
-      approvedAt: serverTimestamp()
-    });
-    // Add points to kid
-    const kidRef = doc(db, 'families', state.familyId, 'kids', kidId);
-    const kidSnap = await getDoc(kidRef);
-    if (kidSnap.exists()) {
-      const current = kidSnap.data().points || 0;
-      const total = kidSnap.data().totalCompletions || 0;
-      await updateDoc(kidRef, {
-        points: current + points,
-        totalCompletions: total + 1
-      });
-    }
-    toast('Approved! Points added.', 'success');
-  } catch (err) {
-    toast('Error approving.', 'error');
-    console.error(err);
-  }
-};
-
-window.rejectCompletion = async (compId) => {
-  try {
-    await updateDoc(doc(db, 'families', state.familyId, 'completions', compId), {
-      status: 'rejected',
-      rejectedAt: serverTimestamp()
-    });
-    toast('Rejected.', '');
-  } catch (err) {
-    toast('Error rejecting.', 'error');
-  }
-};
-
-// ===== INVITE =====
-document.getElementById('btn-copy-invite').addEventListener('click', () => {
-  const code = state.familyData?.inviteCode || '';
-  const url = `${location.origin}${location.pathname}?join=${code}`;
-  navigator.clipboard.writeText(url).then(() => toast('Link copied!', 'success')).catch(() => toast(url));
-});
-
-document.getElementById('btn-regen-invite').addEventListener('click', async () => {
-  const newCode = randomCode(6);
-  try {
-    await updateDoc(doc(db, 'families', state.familyId), { inviteCode: newCode });
-    state.familyData.inviteCode = newCode;
-    document.getElementById('invite-code-display').textContent = newCode;
-    toast('New code generated!', 'success');
-  } catch (err) {
-    toast('Error regenerating code.', 'error');
-  }
-});
-
-// ===== KID FLOW =====
-document.getElementById('btn-kid-role').addEventListener('click', () => {
-  // Check for saved kid session
-  const session = sessionStorage.getItem('kidSession');
-  if (session) {
-    try {
-      const { familyId, kidId } = JSON.parse(session);
-      loadKidDashboard(familyId, kidId);
-      return;
-    } catch(e) {
-      sessionStorage.removeItem('kidSession');
-    }
-  }
-  // Check URL join code
-  const urlCode = getJoinCodeFromURL();
-  if (urlCode) {
-    document.getElementById('join-code-input').value = urlCode.toUpperCase();
-  }
-  showScreen('screen-kid-join');
-});
-
-document.getElementById('kid-join-back').addEventListener('click', () => {
-  showScreen('screen-landing');
-});
-
-// Join form
-document.getElementById('join-form').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const code = document.getElementById('join-code-input').value.trim().toUpperCase();
-  if (!code) return;
-  try {
-    const q = query(collection(db, 'families'), where('inviteCode', '==', code));
-    const snap = await getDocs(q);
-    if (snap.empty) {
-      toast('Family code not found.', 'error');
-      return;
-    }
-    const familyDoc = snap.docs[0];
-    state.joinFamilyId = familyDoc.id;
-    state.familyData = familyDoc.data();
-    showKidSelect(familyDoc.id, familyDoc.data());
-  } catch (err) {
-    toast('Error finding family.', 'error');
-    console.error(err);
-  }
-});
-
-async function showKidSelect(familyId, familyData) {
-  document.getElementById('kid-select-family-name').textContent = familyData.name;
-  // Load kids
-  const kidsSnap = await getDocs(collection(db, 'families', familyId, 'kids'));
-  const kids = kidsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-  const grid = document.getElementById('kid-select-list');
-  if (kids.length === 0) {
-    grid.innerHTML = '<p class="empty-state">No kids added yet. Ask a parent to add you first!</p>';
-  } else {
-    grid.innerHTML = kids.map(kid => `
-      <button class="kid-select-btn" onclick="selectKid('${kid.id}', '${familyId}')">
-        <span class="emoji">${kid.emoji || '🧒'}</span>
-        <span class="name">${kid.name}</span>
-      </button>
-    `).join('');
-  }
-  showScreen('screen-kid-select');
+    await deleteDoc(doc(db, "families", state.familyId, "chores", chore.id));
+    closeModal("modal-chore-detail");
+  } catch(e) { console.error(e); }
 }
 
-document.getElementById('kid-select-back').addEventListener('click', () => {
-  showScreen('screen-kid-join');
-});
+// ── Invite code ───────────────────────────────────────────
+function renderInvite() {
+  const code = state.familyDoc?.inviteCode || "";
+  const codeEl = document.getElementById("invite-code-display");
+  const linkEl = document.getElementById("invite-link-wrap");
+  if (codeEl) codeEl.textContent = code || "------";
+  if (linkEl) {
+    const link = `${location.origin}${location.pathname}?join=${code}`;
+    linkEl.textContent = link;
+  }
+}
 
-window.selectKid = async (kidId, familyId) => {
-  const kidSnap = await getDoc(doc(db, 'families', familyId, 'kids', kidId));
-  if (!kidSnap.exists()) { toast('Kid not found.', 'error'); return; }
-  const kidData = kidSnap.data();
-  state.joinSelectedKid = { id: kidId, familyId, ...kidData };
-  // Show PIN screen
-  document.getElementById('kid-pin-avatar').textContent = kidData.emoji || '🧒';
-  const hasPin = !!kidData.pinHash;
-  document.getElementById('kid-pin-title').textContent = hasPin ? 'Enter your PIN' : 'Create a PIN';
-  document.getElementById('kid-pin-sub').textContent = hasPin ? 'Enter your 4-digit PIN' : 'Choose a 4-digit PIN';
-  // Clear pin inputs
-  document.querySelectorAll('.pin-digit').forEach(d => { d.value = ''; });
-  showScreen('screen-kid-pin');
-  setTimeout(() => document.querySelectorAll('.pin-digit')[0].focus(), 100);
-};
+async function regenCode() {
+  if (!state.familyId) return;
+  const code = genCode();
+  await updateDoc(doc(db, "families", state.familyId), { inviteCode: code });
+  renderInvite();
+  document.getElementById("copy-success").textContent = "New code generated!";
+  setTimeout(() => { document.getElementById("copy-success").textContent = ""; }, 2500);
+}
 
-document.getElementById('kid-pin-back').addEventListener('click', () => {
-  showScreen('screen-kid-select');
-});
-
-// PIN input auto-advance
-document.querySelectorAll('.pin-digit').forEach((input, i, inputs) => {
-  input.addEventListener('input', () => {
-    input.value = input.value.replace(/\D/g, '').slice(-1);
-    if (input.value && i < inputs.length - 1) inputs[i + 1].focus();
+// ── Firestore listeners ───────────────────────────────────
+function startParentListeners(familyId) {
+  stopListeners();
+  state.unsubKids = onSnapshot(collection(db, "families", familyId, "kids"), snap => {
+    state.kids = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    renderLeaderboard("parent-leaderboard", state.kids, state.completions);
+    renderParentChoreGrid();
+    renderManageLists();
   });
-  input.addEventListener('keydown', (e) => {
-    if (e.key === 'Backspace' && !input.value && i > 0) inputs[i - 1].focus();
+  state.unsubChores = onSnapshot(collection(db, "families", familyId, "chores"), snap => {
+    state.chores = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    renderLeaderboard("parent-leaderboard", state.kids, state.completions);
+    renderParentChoreGrid();
+    renderManageLists();
   });
-});
+  state.unsubCompletions = onSnapshot(collection(db, "families", familyId, "completions"), snap => {
+    state.completions = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    renderLeaderboard("parent-leaderboard", state.kids, state.completions);
+    renderParentChoreGrid();
+    renderManageLists();
+  });
+}
 
-document.getElementById('btn-pin-submit').addEventListener('click', async () => {
-  const digits = [...document.querySelectorAll('.pin-digit')].map(d => d.value);
-  if (digits.some(d => !d)) { toast('Enter all 4 digits.', 'error'); return; }
-  const pin = digits.join('');
-  const kid = state.joinSelectedKid;
+function startKidListeners(familyId) {
+  stopListeners();
+  state.unsubKids = onSnapshot(collection(db, "families", familyId, "kids"), snap => {
+    state.kids = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    // refresh kidDoc
+    const fresh = state.kids.find(k => k.id === state.kidId);
+    if (fresh) {
+      state.kidDoc = fresh;
+      applyKidTheme(fresh.themeColor);
+    }
+    renderLeaderboard("kid-leaderboard", state.kids, state.completions);
+    renderKidChoreGrid();
+    refreshKidHeader();
+  });
+  state.unsubChores = onSnapshot(collection(db, "families", familyId, "chores"), snap => {
+    state.chores = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    renderKidChoreGrid();
+  });
+  state.unsubCompletions = onSnapshot(collection(db, "families", familyId, "completions"), snap => {
+    state.completions = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    renderLeaderboard("kid-leaderboard", state.kids, state.completions);
+    renderKidChoreGrid();
+  });
+}
+
+function stopListeners() {
+  if (state.unsubKids)        state.unsubKids();
+  if (state.unsubChores)      state.unsubChores();
+  if (state.unsubCompletions) state.unsubCompletions();
+  state.unsubKids = state.unsubChores = state.unsubCompletions = null;
+}
+
+// ── Kid theme & header ────────────────────────────────────
+function applyKidTheme(color) {
+  if (!color) return;
+  document.documentElement.style.setProperty("--kid-color", color);
+  document.documentElement.style.setProperty("--kid-color-rgb", hexToRgb(color));
+  // Update avatar glow
+  const avatarEl = document.getElementById("kid-avatar-display");
+  if (avatarEl) avatarEl.style.filter = `drop-shadow(0 0 16px rgba(${hexToRgb(color)},0.6))`;
+}
+
+function refreshKidHeader() {
+  const kid = state.kids.find(k => k.id === state.kidId) || state.kidDoc;
   if (!kid) return;
+  const nameEl   = document.getElementById("kid-name-display");
+  const ptsEl    = document.getElementById("kid-points-val");
+  const streakEl = document.getElementById("kid-streak-val");
+  const avatarEl = document.getElementById("kid-avatar-display");
+  if (nameEl)   nameEl.textContent   = kid.nickname || kid.name || "Kid";
+  if (ptsEl)    ptsEl.textContent    = kid.points || 0;
+  if (streakEl) streakEl.textContent = kid.streak || 0;
+  if (avatarEl) avatarEl.textContent = kid.emoji || "⭐";
+}
 
-  try {
-    if (kid.pinHash) {
-      // Verify
-      if (hashPin(pin) !== kid.pinHash) {
-        toast('Wrong PIN. Try again.', 'error');
-        document.querySelectorAll('.pin-digit').forEach(d => { d.value = ''; });
-        document.querySelectorAll('.pin-digit')[0].focus();
-        return;
-      }
-    } else {
-      // Save new PIN
-      await updateDoc(doc(db, 'families', kid.familyId, 'kids', kid.id), {
-        pinHash: hashPin(pin)
-      });
-    }
-    sessionStorage.setItem('kidSession', JSON.stringify({ familyId: kid.familyId, kidId: kid.id }));
-    loadKidDashboard(kid.familyId, kid.id);
-  } catch (err) {
-    toast('Error with PIN.', 'error');
-    console.error(err);
-  }
-});
-
-// ===== KID DASHBOARD =====
-async function loadKidDashboard(familyId, kidId) {
-  clearListeners();
+// ── Go to parent dashboard ────────────────────────────────
+async function goToParentDashboard(familyId) {
   state.familyId = familyId;
-  state.currentKid = kidId;
-
-  // Load family
-  const famSnap = await getDoc(doc(db, 'families', familyId));
-  if (!famSnap.exists()) { toast('Family not found.', 'error'); return; }
-  state.familyData = famSnap.data();
-
-  // Load kid
-  const kidSnap = await getDoc(doc(db, 'families', familyId, 'kids', kidId));
-  if (!kidSnap.exists()) { toast('Kid not found.', 'error'); return; }
-  state.currentKidData = { id: kidId, ...kidSnap.data() };
-
-  updateKidHeader();
-  showScreen('screen-kid-dashboard');
-
-  // Reset tabs
-  document.querySelectorAll('#screen-kid-dashboard .tab-btn').forEach(b => b.classList.remove('active'));
-  document.querySelector('#screen-kid-dashboard .tab-btn[data-tab="my-chores"]').classList.add('active');
-  document.querySelectorAll('#screen-kid-dashboard .tab-panel').forEach(p => p.classList.remove('active'));
-  document.getElementById('tab-my-chores').classList.add('active');
-
-  subscribeKidChores();
-  setupProfileTab();
-  renderBadges();
+  const famDoc = await getDoc(doc(db, "families", familyId));
+  state.familyDoc = famDoc.data();
+  const nameEl = document.getElementById("family-name-display");
+  if (nameEl) nameEl.textContent = state.familyDoc?.name || "Family";
+  renderInvite();
+  startParentListeners(familyId);
+  showScreen("screen-parent-dashboard");
 }
 
-function updateKidHeader() {
-  const kid = state.currentKidData;
-  document.getElementById('kid-avatar-badge').textContent = kid.emoji || '🧒';
-  document.getElementById('kid-topbar-name').textContent = kid.name;
-  document.getElementById('kid-topbar-points').textContent = `${kid.points || 0} pts`;
+// ── Go to kid dashboard ────────────────────────────────────
+function goToKidDashboard(kid, familyId) {
+  state.kidId        = kid.id;
+  state.kidDoc       = kid;
+  state.familyIdKid  = familyId;
+  // save session
+  localStorage.setItem("cq_kid_session", JSON.stringify({ kidId: kid.id, familyId }));
+  applyKidTheme(kid.themeColor);
+  refreshKidHeader();
+  startKidListeners(familyId);
+  showScreen("screen-kid-dashboard");
 }
 
-function subscribeKidChores() {
-  // Listen to chores assigned to this kid
-  const choresUnsub = onSnapshot(
-    collection(db, 'families', state.familyId, 'chores'),
-    async (snap) => {
-      state.chores = snap.docs
-        .map(d => ({ id: d.id, ...d.data() }))
-        .filter(c => (c.assignedTo || []).includes(state.currentKid));
-
-      // Also get today's completions for this kid
-      const compQ = query(
-        collection(db, 'families', state.familyId, 'completions'),
-        where('kidId', '==', state.currentKid)
-      );
-      const compSnap = await getDocs(compQ);
-      state.completions = compSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-      renderKidChores();
+// ── Parent auth flow ──────────────────────────────────────
+async function handleParentAuth(isSignUp) {
+  const email    = document.getElementById("auth-email").value.trim();
+  const password = document.getElementById("auth-password").value;
+  const errEl    = document.getElementById("auth-error");
+  errEl.textContent = "";
+  if (!email || !password) { errEl.textContent = "Fill in all fields."; return; }
+  try {
+    if (isSignUp) {
+      await createUserWithEmailAndPassword(auth, email, password);
+    } else {
+      await signInWithEmailAndPassword(auth, email, password);
     }
-  );
-  state.listeners.push(choresUnsub);
-
-  // Also listen to kid doc for points updates
-  const kidUnsub = onSnapshot(
-    doc(db, 'families', state.familyId, 'kids', state.currentKid),
-    (snap) => {
-      if (snap.exists()) {
-        state.currentKidData = { id: snap.id, ...snap.data() };
-        updateKidHeader();
-        renderBadges();
-      }
-    }
-  );
-  state.listeners.push(kidUnsub);
+    // onAuthStateChanged will handle routing
+  } catch(e) { errEl.textContent = e.message; }
 }
 
-function renderKidChores() {
-  const list = document.getElementById('kid-chores-list');
-  if (state.chores.length === 0) {
-    list.innerHTML = '<p class="empty-state">No chores assigned to you yet!</p>';
+async function handleGoogleAuth() {
+  const errEl = document.getElementById("auth-error");
+  errEl.textContent = "";
+  try {
+    await signInWithPopup(auth, new GoogleAuthProvider());
+  } catch(e) { errEl.textContent = e.message; }
+}
+
+// ── Find parent's family ──────────────────────────────────
+async function findOrPromptFamily(user) {
+  // query families where parentUid == user.uid
+  const q = query(collection(db, "families"), where("parentUid", "==", user.uid));
+  const snap = await getDocs(q);
+  if (snap.empty) {
+    showScreen("screen-create-family");
+  } else {
+    const famDoc = snap.docs[0];
+    await goToParentDashboard(famDoc.id);
+  }
+}
+
+// ── Create family ─────────────────────────────────────────
+async function createFamily() {
+  const name  = document.getElementById("family-name-input").value.trim();
+  const errEl = document.getElementById("family-error");
+  errEl.textContent = "";
+  if (!name) { errEl.textContent = "Enter a family name."; return; }
+  if (!state.parentUser) return;
+  try {
+    const code = genCode();
+    const ref  = await addDoc(collection(db, "families"), {
+      name,
+      parentUid: state.parentUser.uid,
+      inviteCode: code,
+      createdAt: serverTimestamp()
+    });
+    await goToParentDashboard(ref.id);
+  } catch(e) { errEl.textContent = e.message; }
+}
+
+// ── Kid join flow ─────────────────────────────────────────
+async function joinFamily() {
+  const code  = document.getElementById("join-code-input").value.trim().toUpperCase();
+  const errEl = document.getElementById("join-error");
+  errEl.textContent = "";
+  if (!code || code.length < 4) { errEl.textContent = "Enter a valid invite code."; return; }
+  try {
+    const q = query(collection(db, "families"), where("inviteCode", "==", code));
+    const snap = await getDocs(q);
+    if (snap.empty) { errEl.textContent = "Code not found. Check with your parent."; return; }
+    const famDoc = snap.docs[0];
+    state.familyIdKid = famDoc.id;
+    // Load kids
+    const kidsSnap = await getDocs(collection(db, "families", famDoc.id, "kids"));
+    state.kids = kidsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const nameEl = document.getElementById("kid-select-family-name");
+    if (nameEl) nameEl.textContent = famDoc.data().name || "The Family";
+    renderKidSelectGrid();
+    showScreen("screen-kid-select");
+  } catch(e) { errEl.textContent = e.message; }
+}
+
+function renderKidSelectGrid() {
+  const grid = document.getElementById("kid-select-grid");
+  if (!grid) return;
+  grid.innerHTML = "";
+  if (!state.kids.length) {
+    grid.innerHTML = `<p style="color:var(--text-muted);grid-column:1/-1;text-align:center;">No kids in this family yet.<br/>Ask your parent to add you!</p>`;
     return;
   }
-  const todayStr = today();
-  list.innerHTML = state.chores.map(chore => {
-    // Find relevant completion
-    const comp = state.completions.find(c => {
-      if (c.choreId !== chore.id) return false;
-      if (chore.frequency === 'daily') return c.date === todayStr;
-      if (chore.frequency === 'weekly') {
-        // Same ISO week
-        const d = new Date(c.date);
-        const t = new Date();
-        const weekOfComp = getISOWeek(d);
-        const weekOfNow = getISOWeek(t);
-        return weekOfComp === weekOfNow && d.getFullYear() === t.getFullYear();
-      }
-      return c.status === 'pending' || c.status === 'approved';
-    });
+  state.kids.forEach(kid => {
+    const card = document.createElement("button");
+    card.className = "kid-select-card";
+    card.innerHTML = `<div class="kid-select-emoji">${kid.emoji || "⭐"}</div><div class="kid-select-name">${kid.nickname || kid.name}</div>`;
+    card.addEventListener("click", () => selectKid(kid));
+    grid.appendChild(card);
+  });
+}
 
-    let statusIcon = '⭕';
-    let statusClass = '';
-    let statusTitle = 'Mark as done';
-    if (comp) {
-      if (comp.status === 'pending') { statusIcon = '⏳'; statusClass = 'pending'; statusTitle = 'Waiting for approval'; }
-      else if (comp.status === 'approved') { statusIcon = '✅'; statusClass = 'approved'; statusTitle = 'Approved!'; }
-      else if (comp.status === 'rejected') { statusIcon = '❌'; statusClass = 'rejected'; statusTitle = 'Rejected — tap to retry'; }
+function selectKid(kid) {
+  state.kidDoc = kid;
+  state.kidId  = kid.id;
+  // Show pin screen
+  document.getElementById("pin-avatar").textContent = kid.emoji || "⭐";
+  const hasPin = !!kid.pin;
+  document.getElementById("pin-title").textContent    = hasPin ? "Enter Your PIN" : "Create a PIN";
+  document.getElementById("pin-subtitle").textContent = hasPin ? "Enter your 4-digit PIN" : "Choose a new 4-digit PIN";
+  document.getElementById("pin-error").textContent    = "";
+  resetPinDots();
+  showScreen("screen-kid-pin");
+}
+
+// ── PIN logic ─────────────────────────────────────────────
+let pinBuffer = "";
+
+function resetPinDots() {
+  pinBuffer = "";
+  document.querySelectorAll(".pin-dot").forEach(d => d.classList.remove("filled"));
+}
+
+function updatePinDots() {
+  document.querySelectorAll(".pin-dot").forEach((d, i) => {
+    d.classList.toggle("filled", i < pinBuffer.length);
+  });
+}
+
+async function submitPin() {
+  if (!state.kidDoc || !state.familyIdKid) return;
+  const errEl = document.getElementById("pin-error");
+  errEl.textContent = "";
+  const hasPin = !!state.kidDoc.pin;
+  if (hasPin) {
+    if (pinBuffer !== state.kidDoc.pin) {
+      errEl.textContent = "Wrong PIN. Try again.";
+      resetPinDots();
+      return;
     }
-
-    const canMark = !comp || comp.status === 'rejected';
-
-    return `
-      <div class="chore-card">
-        <span class="chore-card-icon">📋</span>
-        <div class="chore-card-info">
-          <div class="chore-card-name">${chore.name}</div>
-          <div class="chore-card-meta">
-            <span class="pts-badge">⭐ ${chore.points || 0} pts</span>
-            <span class="freq-badge">${chore.frequency || 'anytime'}</span>
-          </div>
-        </div>
-        <button class="chore-status-btn ${statusClass}" title="${statusTitle}"
-          ${canMark ? `onclick="markChoreDone('${chore.id}')"` : ''}>
-          ${statusIcon}
-        </button>
-      </div>
-    `;
-  }).join('');
-}
-
-function getISOWeek(d) {
-  const date = new Date(d.getTime());
-  date.setHours(0, 0, 0, 0);
-  date.setDate(date.getDate() + 3 - (date.getDay() + 6) % 7);
-  const week1 = new Date(date.getFullYear(), 0, 4);
-  return 1 + Math.round(((date.getTime() - week1.getTime()) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7);
-}
-
-window.markChoreDone = async (choreId) => {
-  try {
-    await addDoc(collection(db, 'families', state.familyId, 'completions'), {
-      choreId,
-      kidId: state.currentKid,
-      status: 'pending',
-      date: today(),
-      submittedAt: serverTimestamp()
-    });
-    toast('Marked done! Waiting for approval.', 'success');
-    // Re-fetch completions and re-render
-    const compQ = query(
-      collection(db, 'families', state.familyId, 'completions'),
-      where('kidId', '==', state.currentKid)
-    );
-    const compSnap = await getDocs(compQ);
-    state.completions = compSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-    renderKidChores();
-  } catch (err) {
-    toast('Error marking chore.', 'error');
-    console.error(err);
+    goToKidDashboard(state.kidDoc, state.familyIdKid);
+  } else {
+    // Save new pin
+    try {
+      await updateDoc(doc(db, "families", state.familyIdKid, "kids", state.kidDoc.id), { pin: pinBuffer });
+      state.kidDoc.pin = pinBuffer;
+      goToKidDashboard(state.kidDoc, state.familyIdKid);
+    } catch(e) { errEl.textContent = e.message; }
   }
-};
+}
 
-// ===== PROFILE TAB =====
-function setupProfileTab() {
-  const kid = state.currentKidData;
-  let profileEmoji = kid.emoji || '🧒';
-  document.getElementById('profile-emoji-display').textContent = profileEmoji;
-  document.getElementById('profile-nickname').value = kid.name || '';
+// ── Kid customize ─────────────────────────────────────────
+function openKidCustomize() {
+  const kid = state.kidDoc;
+  document.getElementById("kid-nickname-input").value = kid?.nickname || kid?.name || "";
+  state.selectedAvatarEmoji = kid?.emoji || "⭐";
+  state.selectedThemeColor  = kid?.themeColor || "#8b7cf8";
+  renderEmojiGrid("kid-avatar-picker", KID_EMOJIS, e => { state.selectedAvatarEmoji = e; }, state.selectedAvatarEmoji);
+  renderColorPicker();
+  openModal("modal-kid-customize");
+}
 
-  buildEmojiPicker('profile-emoji-picker', profileEmoji, (em) => {
-    profileEmoji = em;
-    document.getElementById('profile-emoji-display').textContent = em;
+function renderColorPicker() {
+  const el = document.getElementById("kid-color-picker");
+  if (!el) return;
+  el.innerHTML = "";
+  THEME_COLORS.forEach(c => {
+    const btn = document.createElement("button");
+    btn.className = "color-swatch" + (c.hex === state.selectedThemeColor ? " selected" : "");
+    btn.style.background = c.hex;
+    btn.title = c.name;
+    btn.type = "button";
+    btn.addEventListener("click", () => {
+      state.selectedThemeColor = c.hex;
+      el.querySelectorAll(".color-swatch").forEach(s => s.classList.remove("selected"));
+      btn.classList.add("selected");
+    });
+    el.appendChild(btn);
+  });
+}
+
+async function saveKidCustomize() {
+  if (!state.kidId || !state.familyIdKid) return;
+  const nickname = document.getElementById("kid-nickname-input").value.trim();
+  try {
+    await updateDoc(doc(db, "families", state.familyIdKid, "kids", state.kidId), {
+      nickname: nickname || state.kidDoc.name,
+      emoji: state.selectedAvatarEmoji,
+      themeColor: state.selectedThemeColor
+    });
+    state.kidDoc.nickname    = nickname || state.kidDoc.name;
+    state.kidDoc.emoji       = state.selectedAvatarEmoji;
+    state.kidDoc.themeColor  = state.selectedThemeColor;
+    applyKidTheme(state.selectedThemeColor);
+    refreshKidHeader();
+    closeModal("modal-kid-customize");
+  } catch(e) { console.error(e); }
+}
+
+// ── Logout ────────────────────────────────────────────────
+async function parentLogout() {
+  stopListeners();
+  state.parentUser = null;
+  state.familyId   = null;
+  state.familyDoc  = null;
+  state.kids = []; state.chores = []; state.completions = [];
+  await signOut(auth);
+  showScreen("screen-landing");
+}
+
+function kidLogout() {
+  stopListeners();
+  state.kidId = null; state.kidDoc = null; state.familyIdKid = null;
+  state.kids = []; state.chores = []; state.completions = [];
+  localStorage.removeItem("cq_kid_session");
+  showScreen("screen-landing");
+}
+
+// ── Auto-restore kid session ──────────────────────────────
+async function tryRestoreKidSession() {
+  const raw = localStorage.getItem("cq_kid_session");
+  if (!raw) return false;
+  try {
+    const { kidId, familyId } = JSON.parse(raw);
+    const kidSnap = await getDoc(doc(db, "families", familyId, "kids", kidId));
+    if (!kidSnap.exists()) { localStorage.removeItem("cq_kid_session"); return false; }
+    const kid = { id: kidSnap.id, ...kidSnap.data() };
+    goToKidDashboard(kid, familyId);
+    return true;
+  } catch { localStorage.removeItem("cq_kid_session"); return false; }
+}
+
+// ── Check URL join param ───────────────────────────────────
+function checkJoinParam() {
+  const params = new URLSearchParams(location.search);
+  const join = params.get("join");
+  if (join) {
+    showScreen("screen-kid-join");
+    document.getElementById("join-code-input").value = join.toUpperCase();
+    // Clean URL
+    history.replaceState({}, "", location.pathname);
+  }
+}
+
+// ══════════════════════════════════════════════════════════
+//  WIRE UP ALL EVENTS
+// ══════════════════════════════════════════════════════════
+document.addEventListener("DOMContentLoaded", () => {
+
+  // ── Landing ──────────────────────────────────────────────
+  document.getElementById("btn-parent-role").addEventListener("click", () => showScreen("screen-parent-auth"));
+  document.getElementById("btn-kid-role").addEventListener("click",    () => showScreen("screen-kid-join"));
+
+  // ── Parent Auth ──────────────────────────────────────────
+  let isSignUp = false;
+  document.getElementById("auth-back-btn").addEventListener("click", () => showScreen("screen-landing"));
+
+  document.getElementById("tab-signin").addEventListener("click", () => {
+    isSignUp = false;
+    document.getElementById("tab-signin").classList.add("active");
+    document.getElementById("tab-signup").classList.remove("active");
+    document.getElementById("btn-email-auth").textContent = "Sign In";
+    document.getElementById("signup-name-group").style.display = "none";
+  });
+  document.getElementById("tab-signup").addEventListener("click", () => {
+    isSignUp = true;
+    document.getElementById("tab-signup").classList.add("active");
+    document.getElementById("tab-signin").classList.remove("active");
+    document.getElementById("btn-email-auth").textContent = "Create Account";
+    document.getElementById("signup-name-group").style.display = "flex";
   });
 
-  document.getElementById('btn-save-profile').onclick = async () => {
-    const newName = document.getElementById('profile-nickname').value.trim();
-    if (!newName) return;
-    try {
-      await updateDoc(doc(db, 'families', state.familyId, 'kids', state.currentKid), {
-        name: newName,
-        emoji: profileEmoji
-      });
-      toast('Profile saved!', 'success');
-    } catch (err) {
-      toast('Error saving profile.', 'error');
+  document.getElementById("btn-email-auth").addEventListener("click", () => handleParentAuth(isSignUp));
+  document.getElementById("btn-google-auth").addEventListener("click", handleGoogleAuth);
+
+  // ── Create Family ────────────────────────────────────────
+  document.getElementById("btn-create-family").addEventListener("click", createFamily);
+  document.getElementById("btn-logout-create").addEventListener("click", () => { signOut(auth); showScreen("screen-landing"); });
+
+  // ── Parent Dashboard — bottom nav ─────────────────────────
+  document.querySelectorAll(".nav-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const panelId = btn.dataset.panel;
+      document.querySelectorAll(".tab-panel").forEach(p => p.classList.remove("active-panel"));
+      document.getElementById(panelId).classList.add("active-panel");
+      document.querySelectorAll(".nav-btn").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+    });
+  });
+
+  // ── Parent logout ────────────────────────────────────────
+  document.getElementById("btn-parent-logout").addEventListener("click", parentLogout);
+
+  // ── Manage actions ────────────────────────────────────────
+  document.getElementById("btn-add-kid").addEventListener("click", () => {
+    document.getElementById("kid-name-input").value = "";
+    document.getElementById("kid-age-input").value  = "";
+    document.getElementById("add-kid-error").textContent = "";
+    state.selectedKidEmoji = "⭐";
+    renderEmojiGrid("kid-emoji-picker", KID_EMOJIS, e => { state.selectedKidEmoji = e; }, "⭐");
+    openModal("modal-add-kid");
+  });
+  document.getElementById("btn-add-chore").addEventListener("click", openAddChore);
+
+  // ── Invite ────────────────────────────────────────────────
+  document.getElementById("btn-copy-code").addEventListener("click", () => {
+    const code = state.familyDoc?.inviteCode || "";
+    navigator.clipboard.writeText(code).then(() => {
+      document.getElementById("copy-success").textContent = "Code copied!";
+      setTimeout(() => { document.getElementById("copy-success").textContent = ""; }, 2000);
+    });
+  });
+  document.getElementById("btn-copy-link").addEventListener("click", () => {
+    const code = state.familyDoc?.inviteCode || "";
+    const link = `${location.origin}${location.pathname}?join=${code}`;
+    navigator.clipboard.writeText(link).then(() => {
+      document.getElementById("copy-success").textContent = "Link copied!";
+      setTimeout(() => { document.getElementById("copy-success").textContent = ""; }, 2000);
+    });
+  });
+  document.getElementById("btn-regen-code").addEventListener("click", regenCode);
+
+  // ── Kid Join ──────────────────────────────────────────────
+  document.getElementById("kid-join-back").addEventListener("click", () => showScreen("screen-landing"));
+  document.getElementById("btn-join-family").addEventListener("click", joinFamily);
+  document.getElementById("join-code-input").addEventListener("keydown", e => { if (e.key === "Enter") joinFamily(); });
+
+  // ── Kid Select ────────────────────────────────────────────
+  document.getElementById("kid-select-back").addEventListener("click", () => showScreen("screen-kid-join"));
+
+  // ── PIN ───────────────────────────────────────────────────
+  document.getElementById("kid-pin-back").addEventListener("click", () => {
+    resetPinDots();
+    showScreen("screen-kid-select");
+  });
+  document.querySelectorAll(".num-btn[data-num]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      if (pinBuffer.length >= 4) return;
+      pinBuffer += btn.dataset.num;
+      updatePinDots();
+      if (pinBuffer.length === 4) submitPin();
+    });
+  });
+  document.getElementById("pin-del").addEventListener("click", () => {
+    pinBuffer = pinBuffer.slice(0, -1);
+    updatePinDots();
+  });
+
+  // ── Kid dashboard ─────────────────────────────────────────
+  document.getElementById("btn-kid-customize").addEventListener("click", openKidCustomize);
+  document.getElementById("btn-kid-logout").addEventListener("click", kidLogout);
+
+  // ── Modals: close/save ────────────────────────────────────
+  document.getElementById("btn-cancel-kid").addEventListener("click",  () => closeModal("modal-add-kid"));
+  document.getElementById("btn-save-kid").addEventListener("click",    addKid);
+  document.getElementById("btn-cancel-chore").addEventListener("click",() => closeModal("modal-add-chore"));
+  document.getElementById("btn-save-chore").addEventListener("click",  saveChore);
+  document.getElementById("btn-close-detail").addEventListener("click",() => closeModal("modal-chore-detail"));
+  document.getElementById("btn-cancel-customize").addEventListener("click", () => closeModal("modal-kid-customize"));
+  document.getElementById("btn-save-customize").addEventListener("click", saveKidCustomize);
+
+  // ── Close modals by clicking overlay ──────────────────────
+  document.querySelectorAll(".modal-overlay").forEach(overlay => {
+    overlay.addEventListener("click", e => {
+      if (e.target === overlay) overlay.classList.add("hidden");
+    });
+  });
+
+  // ── Firebase Auth State ──────────────────────────────────
+  onAuthStateChanged(auth, async user => {
+    if (user) {
+      state.parentUser = user;
+      await findOrPromptFamily(user);
+    } else {
+      state.parentUser = null;
+      // Don't auto-redirect if already on a kid screen
+      const active = document.querySelector(".screen.active");
+      if (active && (
+        active.id === "screen-kid-join" ||
+        active.id === "screen-kid-select" ||
+        active.id === "screen-kid-pin" ||
+        active.id === "screen-kid-dashboard"
+      )) return;
+      // Try restore kid session
+      const restored = await tryRestoreKidSession();
+      if (!restored) showScreen("screen-landing");
     }
-  };
-}
+  });
 
-// ===== BADGES =====
-function renderBadges() {
-  const kid = state.currentKidData;
-  const stats = {
-    total: kid.totalCompletions || 0,
-    points: kid.points || 0,
-    streak: kid.streak || 0
-  };
-  const earned = kid.badges || [];
-  const grid = document.getElementById('badges-grid');
-  grid.innerHTML = BADGES.map(b => {
-    const unlocked = b.check(stats) || earned.includes(b.id);
-    return `
-      <div class="badge-item ${unlocked ? '' : 'locked'}">
-        <span class="badge-icon">${b.icon}</span>
-        <span class="badge-name">${b.name}</span>
-        <span class="badge-desc">${b.desc}</span>
-      </div>
-    `;
-  }).join('');
-}
+  // ── Check join param ──────────────────────────────────────
+  checkJoinParam();
 
-// ===== HANDLE URL JOIN CODE ON LOAD =====
-window.addEventListener('DOMContentLoaded', () => {
-  const urlCode = getJoinCodeFromURL();
-  if (urlCode) {
-    // Auto-navigate to kid join if there's a code in URL
-    setTimeout(() => {
-      if (!state.user) {
-        document.getElementById('join-code-input').value = urlCode.toUpperCase();
-        showScreen('screen-kid-join');
-      }
-    }, 500);
-  }
+  // ── Render kid emoji picker (initial in modal) ─────────────
+  renderEmojiGrid("kid-emoji-picker", KID_EMOJIS, e => { state.selectedKidEmoji = e; }, "⭐");
+  renderEmojiGrid("chore-emoji-picker", CHORE_EMOJIS, e => { state.selectedChoreEmoji = e; }, "🧹");
 });
-
-// ===== RESTORE KID SESSION ON LOAD =====
-// (Auth state change handles parent restore, kid session handled on button click)
-const kidSession = sessionStorage.getItem('kidSession');
-if (kidSession) {
-  try {
-    const { familyId, kidId } = JSON.parse(kidSession);
-    // Delay to let Firebase init
-    setTimeout(() => {
-      if (!state.user) loadKidDashboard(familyId, kidId);
-    }, 800);
-  } catch(e) {
-    sessionStorage.removeItem('kidSession');
-  }
-}
