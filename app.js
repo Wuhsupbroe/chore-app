@@ -142,8 +142,16 @@ async function getKidsForFamily(familyId) {
   return snap.docs.map(d => ({ id: d.id, ...d.data() }));
 }
 
+// ===== LANDING =====
+function setupLandingListeners() {
+  document.getElementById('role-parent').onclick = () => showScreen('auth-screen');
+  document.getElementById('role-kid').onclick = () => showKidJoinFlow();
+}
+
 // ===== AUTH =====
 function setupAuthListeners() {
+  document.getElementById('auth-back-btn').onclick = () => showScreen('landing-screen');
+
   // Tab switching
   document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -180,8 +188,6 @@ function setupAuthListeners() {
   };
   document.getElementById('google-login-btn').onclick = googleLogin;
   document.getElementById('google-signup-btn').onclick = googleLogin;
-
-  document.getElementById('kid-login-link').onclick = (e) => { e.preventDefault(); showKidJoinFlow(); };
 }
 
 function friendlyAuthError(e) {
@@ -208,7 +214,7 @@ function showKidJoinFlow() {
 }
 
 function setupKidJoinListeners() {
-  document.getElementById('back-to-auth-btn').onclick = () => showScreen('auth-screen');
+  document.getElementById('kid-join-back-btn').onclick = () => showScreen('landing-screen');
   document.getElementById('back-to-code-btn').onclick = () => {
     document.getElementById('join-family-lookup').style.display = 'block';
     document.getElementById('join-family-select').style.display = 'none';
@@ -308,7 +314,7 @@ function showKidPinScreen(familyId, kidId, kidData) {
   };
   document.getElementById('back-to-main-auth').onclick = () => {
     sessionStorage.removeItem('kidSession');
-    showScreen('auth-screen');
+    showScreen('landing-screen');
   };
 }
 
@@ -361,13 +367,13 @@ onAuthStateChanged(auth, async (user) => {
           }
         } else {
           sessionStorage.removeItem('kidSession');
-          showScreen('auth-screen');
+          showScreen('landing-screen');
         }
-      } catch { showScreen('auth-screen'); }
+      } catch { showScreen('landing-screen'); }
     } else {
       // Check URL for join code
       const urlCode = new URLSearchParams(location.search).get('join');
-      if (urlCode) { showKidJoinFlow(); } else { showScreen('auth-screen'); }
+      if (urlCode) { showKidJoinFlow(); } else { showScreen('landing-screen'); }
     }
   }
 });
@@ -1123,7 +1129,7 @@ function setupKidMenuAndProfile() {
     showDropdown(e.currentTarget, [
       { label: `👤 ${state.currentKidData?.name}`, disabled: true },
       { label: '🔄 Switch Kid', action: () => { sessionStorage.removeItem('kidSession'); showKidJoinFlow(); } },
-      { label: '🔐 Parent Login', action: () => { sessionStorage.removeItem('kidSession'); showScreen('auth-screen'); } },
+      { label: '🔐 Parent Login', action: () => { sessionStorage.removeItem('kidSession'); showScreen('landing-screen'); } },
     ]);
   };
 
@@ -1175,6 +1181,7 @@ document.addEventListener('click', (e) => {
 
 // ===== INIT =====
 function init() {
+  setupLandingListeners();
   setupAuthListeners();
   setupKidJoinListeners();
   setupFamilySetupListeners();
@@ -1191,10 +1198,10 @@ function init() {
 // Wait for DOM + firebase to initialize
 window.addEventListener('DOMContentLoaded', () => {
   init();
-  // Hide loading after a brief moment (auth state will handle routing)
+  // Fallback: if Firebase auth check takes too long, show landing
   setTimeout(() => {
     if (document.getElementById('loading-screen').classList.contains('active')) {
-      showScreen('auth-screen');
+      showScreen('landing-screen');
     }
   }, 3000);
 });
