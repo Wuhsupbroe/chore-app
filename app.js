@@ -52,6 +52,7 @@ let state = {
   familyData: null,
   kids: [],
   chores: [],
+  allChores: [],
   completions: [],
   // kid specific
   currentKid: null,
@@ -85,7 +86,7 @@ function toast(msg, type = '') {
 function showModal(id) { document.getElementById(id).style.display = 'flex'; }
 function hideModal(id) { document.getElementById(id).style.display = 'none'; }
 
-function confirm(title, msg) {
+function confirmDialog(title, msg) {
   return new Promise(resolve => {
     document.getElementById('confirm-title').textContent = title;
     document.getElementById('confirm-message').textContent = msg;
@@ -626,7 +627,7 @@ window.editChore = function(choreId) {
 };
 
 window.deleteChore = async function(choreId) {
-  const ok = await confirm('Delete Chore', 'This will permanently delete this chore.');
+  const ok = await confirmDialog('Delete Chore', 'This will permanently delete this chore.');
   if (!ok) return;
   try {
     await deleteDoc(doc(db, `families/${state.familyId}/chores/${choreId}`));
@@ -767,7 +768,7 @@ function setupParentModals() {
 
   // Remove kid
   document.getElementById('remove-kid-btn').onclick = async () => {
-    const ok = await confirm('Remove Kid', 'This will remove this kid from your family. This cannot be undone.');
+    const ok = await confirmDialog('Remove Kid', 'This will remove this kid from your family. This cannot be undone.');
     if (!ok) return;
     try {
       await deleteDoc(doc(db, `families/${state.familyId}/kids/${state.editingKidId}`));
@@ -789,7 +790,7 @@ function setupParentModals() {
 
   // Regen invite code
   document.getElementById('regen-invite-btn').onclick = async () => {
-    const ok = await confirm('New Invite Code', 'Old code will no longer work. Generate a new one?');
+    const ok = await confirmDialog('New Invite Code', 'Old code will no longer work. Generate a new one?');
     if (!ok) return;
     const newCode = generateCode();
     await updateDoc(doc(db, 'families', state.familyId), { inviteCode: newCode });
@@ -888,7 +889,8 @@ async function loadKidDashboard(familyId, kidId) {
 
   // Subscribe to chores
   const choresUnsub = onSnapshot(collection(db, `families/${familyId}/chores`), snap => {
-    state.chores = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(c => (c.assignedTo || []).includes(kidId));
+    state.allChores = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    state.chores = state.allChores.filter(c => (c.assignedTo || []).includes(kidId));
     renderKidChoresView();
   });
   state.unsubscribers.push(choresUnsub);
@@ -1046,7 +1048,7 @@ function renderKidBadgesView() {
     hList.innerHTML = '<div class="empty-state"><div class="empty-icon">📜</div><p>No history yet.</p></div>';
   } else {
     hList.innerHTML = state.completions.slice(0, 20).map(comp => {
-      const chore = [...state.chores].find(c => c.id === comp.choreId) || { name: 'Unknown', points: 0 };
+      const chore = (state.allChores || state.chores).find(c => c.id === comp.choreId) || { name: 'Unknown', points: 0 };
       const iconEmoji = CHORE_EMOJIS[Math.abs(chore.name?.charCodeAt(0) || 0) % CHORE_EMOJIS.length];
       return `<div class="chore-card">
         <div class="chore-icon">${iconEmoji}</div>
