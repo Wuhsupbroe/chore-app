@@ -157,7 +157,10 @@ function buildEmojiPicker(containerId, selectedVal, onSelect) {
 // ===== AUTH SCREEN =====
 let isSignup = false;
 
+let parentFlowInitiated = false;
+
 document.getElementById('btn-parent-role').addEventListener('click', () => {
+  parentFlowInitiated = true;
   showScreen('screen-parent-auth');
 });
 
@@ -214,6 +217,9 @@ function friendlyAuthError(code) {
 // ===== AUTH STATE =====
 onAuthStateChanged(auth, async (user) => {
   if (user) {
+    // Only proceed with parent flow if user explicitly started it.
+    // This prevents a stale Firebase session from skipping the landing page.
+    if (!parentFlowInitiated) return;
     state.user = user;
     // Find family for this parent
     const q = query(collection(db, 'families'), where('ownerId', '==', user.uid));
@@ -263,8 +269,16 @@ document.getElementById('family-form').addEventListener('submit', async (e) => {
   }
 });
 
+// Back button on create-family screen — sign out and return to landing
+document.getElementById('create-family-back').addEventListener('click', async () => {
+  parentFlowInitiated = false;
+  await signOut(auth);
+  showScreen('screen-landing');
+});
+
 // ===== LOGOUT =====
 document.getElementById('btn-logout-parent').addEventListener('click', async () => {
+  parentFlowInitiated = false;
   clearListeners();
   await signOut(auth);
   showScreen('screen-landing');
