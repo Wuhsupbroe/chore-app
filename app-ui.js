@@ -963,3 +963,23 @@ export async function sendTradeProposal() {
   } catch(e) { errEl.textContent = e.message; }
 }
 
+// ── iOS Install Hint ─────────────────────────────────────
+export function checkIOSInstall() {
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+  const isStandalone = window.navigator.standalone === true;
+  if (isIOS && !isStandalone) {
+    const closed = localStorage.getItem("ios-hint-closed");
+    if (!closed) {
+      setTimeout(() => {
+        const el = document.getElementById("ios-install-hint");
+        if (el) el.classList.add("show");
+      }, 3000);
+    }
+  }
+}
+window.closeIOSHint = () => {
+  const el = document.getElementById("ios-install-hint");
+  if (el) el.classList.remove("show");
+  localStorage.setItem("ios-hint-closed", "true");
+};
+

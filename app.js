@@ -9,7 +9,7 @@ import { seedStoreIfNeeded } from "./gamification.js";
 import { renderLeaderboard, renderParentChoreGrid, renderKidChoreGrid, renderManageLists, addKid, removeKid,
   openAddChore, saveChore, showDailySummary, renderAvatarContent, renderCharSelectGrid, openChoreDetail,
   refreshKidAvatarPanel, renderStore, refreshInventory, viewKidHistory,
-  renderBountyBoard, renderParentBountyList, renderPendingTrades, sendTradeProposal, renderParentTradeReview } from "./app-ui.js";
+  renderBountyBoard, renderParentBountyList, renderPendingTrades, sendTradeProposal, renderParentTradeReview, checkIOSInstall } from "./app-ui.js";
 import { postBounty } from "./bounty.js";
 
 // ── Notifications ────────────────────────────────────────
@@ -173,6 +173,9 @@ async function goToKidDashboard(kid, familyId) {
   applyKidTheme(kid.themeColor); refreshKidHeader(); startKidListeners(familyId);
   await refreshInventory(); refreshKidAvatarPanel(); renderStore();
   showScreen("screen-kid-dashboard"); startReminderScheduler();
+  // Start daily status logic
+  checkStakes();
+  checkIOSInstall();
 }
 
 // ── Parent auth ──────────────────────────────────────────

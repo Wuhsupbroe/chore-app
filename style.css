@@ -38,14 +38,33 @@ html, body {
   -webkit-font-smoothing: antialiased;
 }
 
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  height: 100vh;
+  height: -webkit-fill-available;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  overscroll-behavior: none; /* iOS Premium: No elastic bounce */
+}
+
 /* ═══ SCREENS ═══════════════════════════════════════════ */
 .screen {
-  position: fixed;
-  inset: 0;
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
   display: none;
   flex-direction: column;
-  background: var(--bg);
-  overflow: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
   z-index: 1;
   opacity: 0;
   transition: opacity 0.25s ease;
@@ -912,7 +931,7 @@ html, body {
   border: 1px solid transparent;
   border-radius: var(--radius-md);
   background: transparent;
-  color: var(--text-dim);
+  color: var(--text-muted);
   font-family: var(--font);
   font-size: 14px;
   font-weight: 700;
@@ -1814,6 +1833,33 @@ html, body {
   background: rgba(139,124,248,0.05) !important;
   border: 1px solid rgba(139,124,248,0.15) !important;
 }
+
+/* ═══ iOS INSTALL HINT ═══════════════════════════════════ */
+.ios-install-hint {
+  position: fixed;
+  bottom: calc(20px + env(safe-area-inset-bottom));
+  left: 20px;
+  right: 20px;
+  background: rgba(30, 30, 30, 0.9);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  padding: 16px;
+  border-radius: 20px;
+  border: 1px solid rgba(255,255,255,0.1);
+  box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  z-index: 9999;
+  transform: translateY(120%);
+  transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.ios-install-hint.show { transform: translateY(0); }
+.ios-install-info { flex: 1; }
+.ios-install-title { font-weight: 800; font-size: 14px; margin-bottom: 2px; }
+.ios-install-text { font-size: 12px; color: var(--text-muted); line-height: 1.4; }
+.ios-install-icon { width: 44px; height: 44px; border-radius: 10px; background: var(--accent); display: flex; align-items: center; justify-content: center; font-size: 20px; box-shadow: 0 4px 12px rgba(139,124,248,0.3); }
+.ios-install-close { font-size: 20px; padding: 10px; cursor: pointer; opacity: 0.5; }
 
 /* ═══ UTILITY ════════════════════════════════════════════ */
 .hidden { display: none !important; }
