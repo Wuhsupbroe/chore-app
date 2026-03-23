@@ -6,13 +6,22 @@
   <title>ChoreQuest</title>
   <meta name="description" content="Family chores, beautifully done. A gamified chore management app." />
   <meta name="theme-color" content="#0a0a0a" />
+  <!-- Prevent white flash on iOS PWA launch -->
+  <style>html,body{background:#0a0a0a;margin:0;padding:0;}</style>
   <!-- PWA -->
   <link rel="manifest" href="manifest.json" />
   <!-- Apple PWA -->
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="ChoreQuest" />
-  <link rel="apple-touch-icon" href="images/icon-192.png" />
+  <!-- 180x180 is the recommended size for iOS home screen icons -->
+  <link rel="apple-touch-icon" sizes="180x180" href="images/icon-192.png" />
+  <!-- Apple splash screens (prevents white flash on older iOS) -->
+  <link rel="apple-touch-startup-image" media="(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3)" href="images/icon-512.png" />
+  <link rel="apple-touch-startup-image" media="(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3)" href="images/icon-512.png" />
+  <link rel="apple-touch-startup-image" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2)" href="images/icon-512.png" />
+  <link rel="apple-touch-startup-image" media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3)" href="images/icon-512.png" />
+  <link rel="apple-touch-startup-image" media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2)" href="images/icon-512.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
