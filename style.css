@@ -1687,9 +1687,19 @@ html, body {
   color: #38bdf8;
   border: 1px solid rgba(56,189,248,0.3);
 }
-.trade-badge.accepted { background: rgba(76,217,100,0.15); color: var(--accent-green); }
-.trade-badge.declined { background: rgba(255,69,58,0.12); color: var(--accent-red); }
+.trade-badge.accepted_by_recipient {
+  background: rgba(139,124,248,0.15);
+  color: #8b7cf8;
+  border: 1px solid rgba(139,124,248,0.3);
+}
+.trade-badge.accepted, .trade-badge.completed { background: rgba(76,217,100,0.15); color: var(--accent-green); }
+.trade-badge.declined, .trade-badge.rejected_by_parent { background: rgba(255,69,58,0.12); color: var(--accent-red); }
 .trade-badge.voided { background: rgba(255,255,255,0.06); color: var(--text-muted); }
+
+.trade-card.waiting-parent {
+  border-color: rgba(139,124,248,0.4);
+  background: linear-gradient(135deg, rgba(139,124,248,0.12), rgba(139,124,248,0.08));
+}
 .trade-swap {
   display: flex;
   align-items: center;
@@ -1790,6 +1800,19 @@ html, body {
 .trade-kid-btn.selected {
   border-color: #38bdf8;
   background: rgba(56,189,248,0.12);
+}
+
+/* Parent view status helpers */
+.text-accent-green { color: var(--accent-green) !important; font-weight: 600; }
+.text-accent-blue { color: #38bdf8 !important; font-weight: 600; }
+.text-muted { color: var(--text-muted) !important; }
+
+.bounty-status-completed { opacity: 0.7; }
+.bounty-status-completed .manage-item-emoji { filter: grayscale(1); opacity: 0.5; }
+
+.trade-review-item {
+  background: rgba(139,124,248,0.05) !important;
+  border: 1px solid rgba(139,124,248,0.15) !important;
 }
 
 /* ═══ UTILITY ════════════════════════════════════════════ */

@@ -9,7 +9,7 @@ import { seedStoreIfNeeded } from "./gamification.js";
 import { renderLeaderboard, renderParentChoreGrid, renderKidChoreGrid, renderManageLists, addKid, removeKid,
   openAddChore, saveChore, showDailySummary, renderAvatarContent, renderCharSelectGrid, openChoreDetail,
   refreshKidAvatarPanel, renderStore, refreshInventory, viewKidHistory,
-  renderBountyBoard, renderParentBountyList, renderPendingTrades, sendTradeProposal } from "./app-ui.js";
+  renderBountyBoard, renderParentBountyList, renderPendingTrades, sendTradeProposal, renderParentTradeReview } from "./app-ui.js";
 import { postBounty } from "./bounty.js";
 
 // ── Notifications ────────────────────────────────────────
@@ -98,6 +98,10 @@ function startParentListeners(familyId) {
   state.unsubBounties = onSnapshot(collection(db, "families", familyId, "bounties"), snap => {
     state.bounties = snap.docs.map(d => ({ id:d.id, ...d.data() }));
     renderParentBountyList(state.bounties);
+  });
+  state.unsubTrades = onSnapshot(collection(db, "families", familyId, "trades"), snap => {
+    state.trades = snap.docs.map(d => ({ id:d.id, ...d.data() }));
+    renderParentTradeReview(state.trades);
   });
 }
 function startKidListeners(familyId) {

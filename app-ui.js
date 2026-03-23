@@ -165,6 +165,7 @@ export function renderKidChoreGrid() {
 // ── Mark chore done ──────────────────────────────────────
 async function markChoreDone(chore, tile) {
   if (!state.kidId || !state.familyIdKid) return;
+  if (!confirm(`Did you really finish "${chore.name}"?`)) return;
   tile.classList.add("just-done"); tile.disabled = true;
   const color = state.kidDoc?.themeColor || "#8b7cf8";
   const rgb = hexToRgb(color);
@@ -694,16 +695,28 @@ export function renderParentBountyList(bounties) {
   const el = document.getElementById("parent-bounty-list");
   if (!el) return;
   if (!bounties.length) { el.innerHTML = `<p class="empty-sm">No bounties posted.</p>`; return; }
+  
+  // Sort: Open -> Claimed -> Completed
+  const sorted = [...bounties].sort((a,b) => {
+    const weights = {open:0, claimed:1, completed:2};
+    return (weights[a.status]||0) - (weights[b.status]||0);
+  });
+
   el.innerHTML = "";
-  bounties.forEach(b => {
+  sorted.forEach(b => {
     const claimer = b.claimedBy ? state.kids.find(k => k.id === b.claimedBy) : null;
     const item = document.createElement("div");
-    item.className = "manage-item";
+    item.className = `manage-item bounty-status-${b.status}`;
     item.innerHTML = `
       <div class="manage-item-emoji">${b.emoji || "⚡"}</div>
       <div class="manage-item-info">
         <div class="manage-item-name">${b.name}</div>
-        <div class="manage-item-sub">${b.points} pts · ${b.status === "open" ? "Open" : b.status === "claimed" ? `Claimed by ${claimer?.name||"?"}` : b.status}</div>
+        <div class="manage-item-sub">
+          ${b.points} pts · 
+          ${b.status === "open" ? "<span class='text-accent-green'>Open</span>" : 
+            b.status === "claimed" ? `<span class='text-accent-blue'>Claimed by ${claimer?.nickname||claimer?.name||"?"}</span>` : 
+            `<span class='text-muted'>Completed by ${claimer?.nickname||claimer?.name||"?"}</span>`}
+        </div>
       </div>
       <button class="manage-item-action" data-id="${b.id}">×</button>
     `;
@@ -717,6 +730,53 @@ export function renderParentBountyList(bounties) {
   });
 }
 
+// Parent Trade Review
+export function renderParentTradeReview(trades) {
+  const el = document.getElementById("parent-trade-list");
+  if (!el) return;
+  const toReview = trades.filter(t => t.status === "accepted_by_recipient");
+  if (!toReview.length) { el.innerHTML = `<p class="empty-sm">No trades awaiting approval.</p>`; return; }
+  el.innerHTML = "";
+  toReview.forEach(t => {
+    const p = state.kids.find(k => k.id === t.proposerId);
+    const r = state.kids.find(k => k.id === t.receiverId);
+    const pChores = t.proposerChoreIds.map(id => state.chores.find(c => c.id === id)).filter(Boolean);
+    const rChores = t.receiverChoreIds.map(id => state.chores.find(c => c.id === id)).filter(Boolean);
+
+    const item = document.createElement("div");
+    item.className = "manage-item trade-review-item";
+    item.style.flexDirection = "column"; item.style.alignItems = "stretch"; item.style.gap = "8px";
+    item.innerHTML = `
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <div style="font-weight:600; font-size:14px;">${p?.nickname||"?"} ⇄ ${r?.nickname||"?"}</div>
+        <div class="badge pending" style="font-size:10px">Awaiting Approval</div>
+      </div>
+      <div style="font-size:12px; color:var(--text-muted); display:flex; gap:12px;">
+        <div style="flex:1"><strong>${p?.nickname} gives:</strong> ${pChores.map(c=>c.emoji).join(" ")}</div>
+        <div style="flex:1"><strong>${r?.nickname} gives:</strong> ${rChores.map(c=>c.emoji).join(" ")}</div>
+      </div>
+      <div style="display:flex; gap:8px; margin-top:4px;">
+        <button class="btn-ghost" style="flex:1; padding:6px; font-size:12px;" onclick="handleParentTrade('${t.id}', 'reject')">Reject</button>
+        <button class="btn-primary" style="flex:1; padding:6px; font-size:12px;" onclick="handleParentTrade('${t.id}', 'approve')">Approve Swap</button>
+      </div>
+    `;
+    el.appendChild(item);
+  });
+}
+window.handleParentTrade = async (tradeId, action) => {
+  try {
+    const { approveTrade, rejectTradeByParent } = await import("./trading.js");
+    if (action === "approve") {
+      if (!confirm("Approve this chore swap?")) return;
+      await approveTrade(db, state.familyId, tradeId);
+    } else {
+      if (!confirm("Reject this trade?")) return;
+      await rejectTradeByParent(db, state.familyId, tradeId);
+    }
+  } catch(e) { alert(e.message); }
+};
+
+
 // ═══════════════════════════════════════════════════════
 //  CHORE TRADING UI
 // ═══════════════════════════════════════════════════════
@@ -726,7 +786,7 @@ export function renderPendingTrades(trades) {
   const label = document.getElementById("pending-trades-label");
   if (!el || !label) return;
   const myTrades = trades.filter(t =>
-    t.status === "pending" && (t.proposerId === state.kidId || t.receiverId === state.kidId)
+    (t.status === "pending" || t.status === "accepted_by_recipient") && (t.proposerId === state.kidId || t.receiverId === state.kidId)
   );
   if (!myTrades.length) { el.innerHTML = ""; label.style.display = "none"; return; }
   label.style.display = "";
@@ -734,15 +794,16 @@ export function renderPendingTrades(trades) {
   myTrades.forEach(t => {
     const isIncoming = t.receiverId === state.kidId;
     const otherKid = state.kids.find(k => k.id === (isIncoming ? t.proposerId : t.receiverId));
+    const isWaitingParent = t.status === "accepted_by_recipient";
     const myChores = (isIncoming ? t.receiverChoreIds : t.proposerChoreIds).map(cid => state.chores.find(c => c.id === cid)).filter(Boolean);
     const theirChores = (isIncoming ? t.proposerChoreIds : t.receiverChoreIds).map(cid => state.chores.find(c => c.id === cid)).filter(Boolean);
 
     const card = document.createElement("div");
-    card.className = "trade-card";
+    card.className = "trade-card" + (isWaitingParent ? " waiting-parent" : "");
     card.innerHTML = `
       <div class="trade-card-header">
         ${isIncoming ? `📥 ${otherKid?.nickname || otherKid?.name || "?"} wants to trade` : `📤 Trade with ${otherKid?.nickname || otherKid?.name || "?"}`}
-        <span class="trade-badge pending">Pending</span>
+        <span class="trade-badge ${t.status}">${isWaitingParent ? "Awaiting Parent Approval" : "Pending"}</span>
       </div>
       <div class="trade-swap">
         <div class="trade-side">
@@ -767,8 +828,12 @@ function openTradeView(trade, isIncoming, otherKid) {
   const myChores = (isIncoming ? trade.receiverChoreIds : trade.proposerChoreIds).map(cid => state.chores.find(c => c.id === cid)).filter(Boolean);
   const theirChores = (isIncoming ? trade.proposerChoreIds : trade.receiverChoreIds).map(cid => state.chores.find(c => c.id === cid)).filter(Boolean);
 
+  const isWaitingParent = trade.status === "accepted_by_recipient";
+
   content.innerHTML = `
-    <p style="font-size:14px;color:var(--text-muted);margin:12px 0">${isIncoming ? `${otherKid?.nickname || "?"} wants to trade with you` : `Waiting for ${otherKid?.nickname || "?"} to respond`}</p>
+    <p style="font-size:14px;color:var(--text-muted);margin:12px 0">
+      ${isWaitingParent ? `Awaiting parent approval for this swap.` : isIncoming ? `${otherKid?.nickname || "?"} wants to trade with you` : `Waiting for ${otherKid?.nickname || "?"} to respond`}
+    </p>
     <div class="trade-swap" style="text-align:left;margin:16px 0">
       <div class="trade-side">
         <div class="trade-side-label">${isIncoming ? "They offer" : "You offer"}</div>
@@ -782,7 +847,9 @@ function openTradeView(trade, isIncoming, otherKid) {
     </div>
   `;
 
-  if (isIncoming) {
+  if (isWaitingParent) {
+    actions.innerHTML = `<button class="btn-ghost" onclick="closeModal('modal-view-trade')">Close</button>`;
+  } else if (isIncoming) {
     actions.innerHTML = `
       <button class="btn-ghost" id="btn-decline-trade">Decline</button>
       <button class="btn-primary" id="btn-accept-trade">✅ Accept Trade</button>
@@ -793,7 +860,7 @@ function openTradeView(trade, isIncoming, otherKid) {
       try {
         const { acceptTrade } = await import("./trading.js");
         await acceptTrade(db, state.familyIdKid, trade.id);
-        btn.textContent = "✅ Traded!";
+        btn.textContent = "✅ Accepted!";
         setTimeout(() => closeModal("modal-view-trade"), 800);
       } catch(e) { alert(e.message); btn.disabled = false; btn.textContent = "✅ Accept Trade"; }
     };
@@ -805,14 +872,13 @@ function openTradeView(trade, isIncoming, otherKid) {
   } else {
     actions.innerHTML = `
       <button class="btn-ghost" id="btn-cancel-trade-view">Cancel Trade</button>
-      <button class="btn-ghost" id="btn-close-trade-view">Close</button>
+      <button class="btn-ghost" onclick="closeModal('modal-view-trade')">Close</button>
     `;
     document.getElementById("btn-cancel-trade-view").onclick = async () => {
       const { cancelTrade } = await import("./trading.js");
       await cancelTrade(db, state.familyIdKid, trade.id);
       closeModal("modal-view-trade");
     };
-    document.getElementById("btn-close-trade-view").onclick = () => closeModal("modal-view-trade");
   }
   openModal("modal-view-trade");
 }

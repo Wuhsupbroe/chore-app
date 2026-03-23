@@ -52,8 +52,17 @@ export async function proposeTrade(db, familyId, proposerId, receiverId, propose
   });
 }
 
-// ── Accept Trade — Atomic chore swap ─────────────────────
+// ── Accept Trade (Recipient kid accepts) ────────────────
 export async function acceptTrade(db, familyId, tradeId) {
+  const tradeRef = doc(db, "families", familyId, "tradeId", tradeId); // Oops, fixed path below
+  await updateDoc(doc(db, "families", familyId, "trades", tradeId), {
+    status: "accepted_by_recipient",
+    recipientAcceptedAt: serverTimestamp()
+  });
+}
+
+// ── Approve Trade (By Parent — Atomic swap) ─────────────
+export async function approveTrade(db, familyId, tradeId) {
   const tradeRef = doc(db, "families", familyId, "trades", tradeId);
 
   return runTransaction(db, async (transaction) => {
@@ -61,36 +70,28 @@ export async function acceptTrade(db, familyId, tradeId) {
     if (!tradeSnap.exists()) throw new Error("Trade not found.");
 
     const trade = tradeSnap.data();
-    if (trade.status !== "pending") throw new Error("This trade is no longer pending.");
+    if (trade.status !== "accepted_by_recipient") throw new Error("This trade isn't ready for approval.");
 
     const { proposerId, receiverId, proposerChoreIds, receiverChoreIds } = trade;
 
     // Read all chore docs inside transaction
     const allChoreRefs = [];
-    const allChoreData = [];
-
     for (const cid of proposerChoreIds) {
       const ref = doc(db, "families", familyId, "chores", cid);
       const snap = await transaction.get(ref);
-      if (!snap.exists()) throw new Error("A chore was deleted. Trade voided.");
+      if (!snap.exists()) throw new Error("A chore was deleted.");
       const data = snap.data();
-      if (!(data.assignedTo || []).includes(proposerId)) throw new Error("A chore was reassigned. Trade voided.");
+      if (!(data.assignedTo || []).includes(proposerId)) throw new Error("A chore was reassigned.");
       allChoreRefs.push({ ref, data, owner: proposerId, newOwner: receiverId });
     }
-
     for (const cid of receiverChoreIds) {
       const ref = doc(db, "families", familyId, "chores", cid);
       const snap = await transaction.get(ref);
-      if (!snap.exists()) throw new Error("A chore was deleted. Trade voided.");
+      if (!snap.exists()) throw new Error("A chore was deleted.");
       const data = snap.data();
-      if (!(data.assignedTo || []).includes(receiverId)) throw new Error("A chore was reassigned. Trade voided.");
+      if (!(data.assignedTo || []).includes(receiverId)) throw new Error("A chore was reassigned.");
       allChoreRefs.push({ ref, data, owner: receiverId, newOwner: proposerId });
     }
-
-    // Check no chore was completed while pending (today)
-    const today = new Date().toISOString().slice(0, 10);
-    // We skip completion check inside transaction since we can't query — 
-    // the auto-void on completion handles this case
 
     // Swap assignments atomically
     for (const { ref, data, owner, newOwner } of allChoreRefs) {
@@ -101,15 +102,24 @@ export async function acceptTrade(db, familyId, tradeId) {
       transaction.update(ref, { assignedTo: assigned });
     }
 
-    // Mark trade accepted
+    // Mark trade completed
     transaction.update(tradeRef, {
-      status: "accepted",
+      status: "completed",
       resolvedAt: serverTimestamp()
     });
 
     return { success: true };
   });
 }
+
+// ── Reject Trade (By Parent) ─────────────────────────────
+export async function rejectTradeByParent(db, familyId, tradeId) {
+  await updateDoc(doc(db, "families", familyId, "trades", tradeId), {
+    status: "rejected_by_parent",
+    resolvedAt: serverTimestamp()
+  });
+}
+
 
 // ── Decline Trade ────────────────────────────────────────
 export async function declineTrade(db, familyId, tradeId) {
@@ -131,7 +141,7 @@ export async function cancelTrade(db, familyId, tradeId) {
 export async function voidTradesForChore(db, familyId, choreId) {
   const q = query(
     collection(db, "families", familyId, "trades"),
-    where("status", "==", "pending")
+    where("status", "in", ["pending", "accepted_by_recipient"])
   );
   const snap = await getDocs(q);
   for (const tdoc of snap.docs) {
