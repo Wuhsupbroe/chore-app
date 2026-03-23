@@ -2,8 +2,17 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <title>ChoreQuest</title>
+  <meta name="description" content="Family chores, beautifully done. A gamified chore management app." />
+  <meta name="theme-color" content="#0a0a0a" />
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.json" />
+  <!-- Apple PWA -->
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="ChoreQuest" />
+  <link rel="apple-touch-icon" href="images/icon-192.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
@@ -139,6 +148,14 @@
           </div>
           <div class="manage-list" id="chores-list">
             <p class="empty-sm">No chores added yet.</p>
+          </div>
+
+          <div class="manage-row">
+            <div class="section-label" style="margin:0;">⚡ Bounty Board</div>
+            <button class="btn-sm-pill" id="btn-post-bounty">+ Post Bounty</button>
+          </div>
+          <div class="manage-list" id="parent-bounty-list">
+            <p class="empty-sm">No bounties posted.</p>
           </div>
           <div style="height:100px;"></div>
         </div>
@@ -311,6 +328,16 @@
       <!-- KID HOME PANEL -->
       <div class="kid-tab-panel active-kid-panel" id="kid-panel-home">
         <div class="scroll-area">
+          <!-- Pending Trades -->
+          <div class="section-label" id="pending-trades-label" style="display:none;">🤝 Pending Trades</div>
+          <div id="pending-trades-list"></div>
+
+          <!-- Bounty Board -->
+          <div class="section-label">⚡ Bounty Board</div>
+          <div id="kid-bounty-board" class="bounty-board">
+            <p class="empty-sm">No bounties right now. Check back later!</p>
+          </div>
+
           <div class="section-label">Family Leaderboard</div>
           <div class="glass-card leaderboard-card" id="kid-leaderboard">
             <p class="empty-sm">Just you here!</p>
@@ -564,6 +591,101 @@
     </div>
   </div>
 
+  <!-- Post Bounty Modal (Parent) -->
+  <div class="modal-overlay hidden" id="modal-post-bounty">
+    <div class="modal-card glass-card">
+      <h3 class="modal-title">⚡ Post a Bounty</h3>
+      <p style="font-size:13px;color:var(--text-muted);margin-bottom:12px">First kid to claim it gets the job!</p>
+      <div class="form-group">
+        <input type="text" id="bounty-name-input" class="form-input" placeholder="Bounty name (e.g. Clean the garage)" />
+      </div>
+      <div class="form-group">
+        <textarea id="bounty-desc-input" class="form-input" placeholder="Description (optional)" rows="2" style="resize:none"></textarea>
+      </div>
+      <div style="display:flex;gap:10px">
+        <div class="form-group" style="flex:1">
+          <input type="number" id="bounty-points-input" class="form-input" placeholder="Points" value="75" min="1" />
+        </div>
+        <div class="form-group" style="flex:1">
+          <input type="date" id="bounty-deadline-input" class="form-input" />
+        </div>
+      </div>
+      <p class="emoji-label">Bounty Icon</p>
+      <div class="emoji-grid" id="bounty-emoji-picker"></div>
+      <p class="error-msg" id="bounty-error"></p>
+      <div class="modal-actions">
+        <button class="btn-ghost" id="btn-cancel-bounty">Cancel</button>
+        <button class="btn-primary" id="btn-save-bounty">Post Bounty ⚡</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bounty Detail Modal (Kid) -->
+  <div class="modal-overlay hidden" id="modal-bounty-detail">
+    <div class="modal-card glass-card" style="align-items:center;text-align:center">
+      <div style="font-size:52px" id="bounty-detail-icon">⚡</div>
+      <h3 class="modal-title" id="bounty-detail-name">Bounty</h3>
+      <p class="detail-desc" id="bounty-detail-desc"></p>
+      <div class="detail-badges">
+        <span class="badge bounty-pts-badge" id="bounty-detail-pts">75 pts</span>
+        <span class="badge" id="bounty-detail-deadline"></span>
+        <span class="badge" id="bounty-detail-status">Open</span>
+      </div>
+      <div id="bounty-detail-actions" class="modal-actions" style="width:100%">
+        <button class="btn-ghost" id="btn-close-bounty-detail">Close</button>
+        <button class="btn-primary bounty-claim-btn" id="btn-claim-bounty">⚡ Claim It!</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Trade Proposal Modal -->
+  <div class="modal-overlay hidden" id="modal-trade-proposal">
+    <div class="modal-card glass-card" style="max-height:85vh;overflow-y:auto">
+      <h3 class="modal-title">🤝 Propose a Trade</h3>
+      <p style="font-size:13px;color:var(--text-muted);margin-bottom:12px">Pick your chore(s), then pick theirs.</p>
+
+      <p class="emoji-label">Step 1: Your Chores to Offer</p>
+      <div id="trade-my-chores" class="trade-chore-picker"></div>
+
+      <p class="emoji-label">Step 2: Trade With</p>
+      <div id="trade-target-kids" class="trade-kid-picker"></div>
+
+      <p class="emoji-label">Step 3: Their Chores You Want</p>
+      <div id="trade-their-chores" class="trade-chore-picker"></div>
+
+      <p class="error-msg" id="trade-error"></p>
+      <div class="modal-actions">
+        <button class="btn-ghost" id="btn-cancel-trade">Cancel</button>
+        <button class="btn-primary" id="btn-send-trade">Send Trade 🤝</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- View Trade Modal -->
+  <div class="modal-overlay hidden" id="modal-view-trade">
+    <div class="modal-card glass-card" style="align-items:center;text-align:center">
+      <h3 class="modal-title">🤝 Trade Proposal</h3>
+      <div id="trade-view-content"></div>
+      <div id="trade-view-actions" class="modal-actions" style="width:100%"></div>
+    </div>
+  </div>
+
+  <!-- Streak Bonus Toast -->
+  <div class="streak-toast hidden" id="streak-toast">
+    <div class="streak-toast-content">
+      <span class="streak-toast-icon">🔥</span>
+      <span class="streak-toast-text" id="streak-toast-text">5-Day Streak! +100 Bonus Points!</span>
+    </div>
+  </div>
+
   <script type="module" src="app.js"></script>
+  <script>
+    // Register Service Worker
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js').catch(() => {});
+      });
+    }
+  </script>
 </body>
 </html>

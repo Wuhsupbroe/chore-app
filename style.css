@@ -1560,5 +1560,237 @@ html, body {
   white-space: nowrap;
 }
 
+/* ═══ BOUNTY BOARD ═══════════════════════════════════════ */
+.bounty-board {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.bounty-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px;
+  border-radius: var(--radius-md);
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  cursor: pointer;
+  transition: var(--transition);
+  position: relative;
+  overflow: hidden;
+}
+.bounty-card.bounty-open {
+  border-color: rgba(245,166,35,0.35);
+  background: linear-gradient(135deg, rgba(245,166,35,0.08), rgba(255,87,34,0.05));
+  animation: bounty-pulse 2.5s ease-in-out infinite;
+}
+@keyframes bounty-pulse {
+  0%, 100% { box-shadow: 0 0 8px rgba(245,166,35,0.1); }
+  50% { box-shadow: 0 0 24px rgba(245,166,35,0.3), 0 0 48px rgba(245,166,35,0.1); }
+}
+.bounty-card.bounty-claimed {
+  border-color: rgba(76,217,100,0.25);
+  background: rgba(76,217,100,0.06);
+  animation: none;
+}
+.bounty-card:hover { transform: translateY(-2px); }
+.bounty-card:active { transform: scale(0.98); }
+.bounty-emoji { font-size: 32px; flex-shrink: 0; }
+.bounty-info { flex: 1; min-width: 0; }
+.bounty-name {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bounty-sub {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+.bounty-pts {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--accent-amber);
+  white-space: nowrap;
+}
+.bounty-pts-badge {
+  background: rgba(245,166,35,0.15) !important;
+  border-color: rgba(245,166,35,0.3) !important;
+  color: var(--accent-amber) !important;
+}
+.bounty-claim-btn {
+  background: linear-gradient(135deg, #f5a623, #ff6f00) !important;
+  border: none !important;
+  color: #fff !important;
+  font-weight: 800 !important;
+}
+.bounty-claimed-badge {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--accent-green);
+  background: rgba(76,217,100,0.12);
+  padding: 3px 10px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+.btn-propose-trade {
+  background: linear-gradient(135deg, rgba(56,189,248,0.15), rgba(139,124,248,0.1));
+  border: 1px solid rgba(56,189,248,0.3);
+  border-radius: var(--radius-md);
+  color: #38bdf8;
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 700;
+  padding: 10px 16px;
+  cursor: pointer;
+  transition: var(--transition);
+  width: 100%;
+  margin-bottom: 8px;
+}
+.btn-propose-trade:hover { background: rgba(56,189,248,0.2); }
+
+/* ═══ TRADING ════════════════════════════════════════════ */
+.trade-card {
+  padding: 16px;
+  border-radius: var(--radius-md);
+  background: linear-gradient(135deg, rgba(56,189,248,0.08), rgba(139,124,248,0.06));
+  border: 1px solid rgba(56,189,248,0.25);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  margin-bottom: 10px;
+  cursor: pointer;
+  transition: var(--transition);
+}
+.trade-card:hover { transform: translateY(-2px); border-color: rgba(56,189,248,0.4); }
+.trade-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  font-size: 14px;
+  font-weight: 700;
+}
+.trade-badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  margin-left: auto;
+}
+.trade-badge.pending {
+  background: rgba(56,189,248,0.15);
+  color: #38bdf8;
+  border: 1px solid rgba(56,189,248,0.3);
+}
+.trade-badge.accepted { background: rgba(76,217,100,0.15); color: var(--accent-green); }
+.trade-badge.declined { background: rgba(255,69,58,0.12); color: var(--accent-red); }
+.trade-badge.voided { background: rgba(255,255,255,0.06); color: var(--text-muted); }
+.trade-swap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: center;
+}
+.trade-side {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+.trade-side-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  margin-bottom: 2px;
+}
+.trade-chore-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--glass-border);
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.trade-arrow {
+  font-size: 22px;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+.trade-chore-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.trade-pick-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  background: rgba(255,255,255,0.04);
+  cursor: pointer;
+  transition: 0.15s;
+  border: 1px solid transparent;
+}
+.trade-pick-item:hover { background: rgba(255,255,255,0.08); }
+.trade-pick-item.selected {
+  background: rgba(56,189,248,0.12);
+  border-color: rgba(56,189,248,0.3);
+}
+.trade-pick-check {
+  width: 20px; height: 20px;
+  border-radius: 6px;
+  border: 2px solid var(--glass-border);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; color: transparent;
+  flex-shrink: 0;
+  transition: 0.15s;
+}
+.trade-pick-item.selected .trade-pick-check {
+  background: #38bdf8;
+  border-color: #38bdf8;
+  color: #fff;
+}
+.trade-kid-picker {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.trade-kid-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: var(--radius-sm);
+  background: rgba(255,255,255,0.05);
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: 0.15s;
+  font-family: var(--font);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+.trade-kid-btn:hover { background: rgba(255,255,255,0.1); }
+.trade-kid-btn.selected {
+  border-color: #38bdf8;
+  background: rgba(56,189,248,0.12);
+}
+
 /* ═══ UTILITY ════════════════════════════════════════════ */
 .hidden { display: none !important; }

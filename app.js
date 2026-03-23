@@ -8,7 +8,9 @@ import { CHARACTERS, getCharById, getLevel, getLevelTier } from "./gamedata.js";
 import { seedStoreIfNeeded } from "./gamification.js";
 import { renderLeaderboard, renderParentChoreGrid, renderKidChoreGrid, renderManageLists, addKid, removeKid,
   openAddChore, saveChore, showDailySummary, renderAvatarContent, renderCharSelectGrid, openChoreDetail,
-  refreshKidAvatarPanel, renderStore, refreshInventory, viewKidHistory } from "./app-ui.js";
+  refreshKidAvatarPanel, renderStore, refreshInventory, viewKidHistory,
+  renderBountyBoard, renderParentBountyList, renderPendingTrades, sendTradeProposal } from "./app-ui.js";
+import { postBounty } from "./bounty.js";
 
 // ── Notifications ────────────────────────────────────────
 async function requestNotificationPermission() {
@@ -52,6 +54,32 @@ async function regenCode() {
   setTimeout(() => { document.getElementById("copy-success").textContent = ""; }, 2500);
 }
 
+// ── Bounty Board (Parent) ────────────────────────────────
+function openPostBounty() {
+  document.getElementById("bounty-name-input").value = "";
+  document.getElementById("bounty-desc-input").value = "";
+  document.getElementById("bounty-points-input").value = "75";
+  document.getElementById("bounty-deadline-input").value = "";
+  document.getElementById("bounty-error").textContent = "";
+  state.selectedBountyEmoji = "⚡";
+  renderEmojiGrid("bounty-emoji-picker", CHORE_EMOJIS, e => { state.selectedBountyEmoji = e; }, "⚡");
+  openModal("modal-post-bounty");
+}
+
+async function saveBounty() {
+  const name = document.getElementById("bounty-name-input").value.trim();
+  const desc = document.getElementById("bounty-desc-input").value.trim();
+  const pts = parseInt(document.getElementById("bounty-points-input").value) || 75;
+  const deadline = document.getElementById("bounty-deadline-input").value;
+  const errEl = document.getElementById("bounty-error");
+  if (!name) { errEl.textContent = "Enter a bounty name."; return; }
+  try {
+    const { postBounty } = await import("./bounty.js");
+    await postBounty(db, state.familyId, { name, description: desc, emoji: state.selectedBountyEmoji, points: pts, deadline });
+    closeModal("modal-post-bounty");
+  } catch (e) { errEl.textContent = e.message; }
+}
+
 // ── Firestore listeners ──────────────────────────────────
 function startParentListeners(familyId) {
   stopListeners();
@@ -66,6 +94,10 @@ function startParentListeners(familyId) {
   state.unsubCompletions = onSnapshot(collection(db, "families", familyId, "completions"), snap => {
     state.completions = snap.docs.map(d => ({ id:d.id, ...d.data() }));
     renderLeaderboard("parent-leaderboard", state.kids, state.completions); renderParentChoreGrid(); renderManageLists();
+  });
+  state.unsubBounties = onSnapshot(collection(db, "families", familyId, "bounties"), snap => {
+    state.bounties = snap.docs.map(d => ({ id:d.id, ...d.data() }));
+    renderParentBountyList(state.bounties);
   });
 }
 function startKidListeners(familyId) {
@@ -83,10 +115,19 @@ function startKidListeners(familyId) {
     state.completions = snap.docs.map(d => ({ id:d.id, ...d.data() }));
     renderLeaderboard("kid-leaderboard", state.kids, state.completions); renderKidChoreGrid();
   });
+  state.unsubBounties = onSnapshot(collection(db, "families", familyId, "bounties"), snap => {
+    state.bounties = snap.docs.map(d => ({ id:d.id, ...d.data() }));
+    renderBountyBoard(state.bounties);
+  });
+  state.unsubTrades = onSnapshot(collection(db, "families", familyId, "trades"), snap => {
+    state.trades = snap.docs.map(d => ({ id:d.id, ...d.data() }));
+    renderPendingTrades(state.trades);
+  });
 }
 function stopListeners() {
   if (state.unsubKids) state.unsubKids(); if (state.unsubChores) state.unsubChores(); if (state.unsubCompletions) state.unsubCompletions();
-  state.unsubKids = state.unsubChores = state.unsubCompletions = null;
+  if (state.unsubBounties) state.unsubBounties(); if (state.unsubTrades) state.unsubTrades();
+  state.unsubKids = state.unsubChores = state.unsubCompletions = state.unsubBounties = state.unsubTrades = null;
 }
 
 // ── Kid theme & header ───────────────────────────────────
@@ -342,6 +383,20 @@ document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("btn-close-summary").addEventListener("click", () => closeModal("modal-daily-summary"));
   document.getElementById("btn-close-store-item").addEventListener("click", () => closeModal("modal-store-item"));
   document.getElementById("btn-close-view-avatar").addEventListener("click", () => closeModal("modal-view-avatar"));
+
+  // Bounty Board (Parent)
+  document.getElementById("btn-post-bounty")?.addEventListener("click", openPostBounty);
+  document.getElementById("btn-cancel-bounty")?.addEventListener("click", () => closeModal("modal-post-bounty"));
+  document.getElementById("btn-save-bounty")?.addEventListener("click", saveBounty);
+
+  // Bounty Board (Kid)
+  document.getElementById("btn-close-bounty-detail")?.addEventListener("click", () => closeModal("modal-bounty-detail"));
+
+  // Trading (Kid)
+  document.getElementById("btn-cancel-trade")?.addEventListener("click", () => closeModal("modal-trade-proposal"));
+  document.getElementById("btn-send-trade")?.addEventListener("click", sendTradeProposal);
+  document.getElementById("btn-close-view-trade")?.addEventListener("click", () => closeModal("modal-view-trade"));
+
   // Parent phone save
   document.getElementById("btn-save-parent-phone")?.addEventListener("click", async () => {
     const phone=document.getElementById("parent-phone-input")?.value.trim()||""; if(!state.familyId) return;

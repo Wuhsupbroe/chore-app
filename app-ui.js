@@ -153,6 +153,13 @@ export function renderKidChoreGrid() {
     else tile.style.cursor = "default";
     grid.appendChild(tile);
   });
+
+  // Add Propose Trade button
+  const tradeBtn = document.createElement("button");
+  tradeBtn.className = "btn-propose-trade";
+  tradeBtn.innerHTML = `🤝 Propose a Trade`;
+  tradeBtn.onclick = () => openTradeProposal();
+  grid.appendChild(tradeBtn);
 }
 
 // ── Mark chore done ──────────────────────────────────────
@@ -183,6 +190,13 @@ async function markChoreDone(chore, tile) {
     // Check streak
     const result = await calculateStreak(db, state.familyIdKid, state.kidId, state.chores, state.completions);
     if (result.bonus > 0) showStreakToast(result.streak, result.bonus);
+    
+    // Void any pending trades involving this chore
+    try {
+      const { voidTradesForChore } = await import("./trading.js");
+      await voidTradesForChore(db, state.familyIdKid, chore.id);
+    } catch(e) { console.warn("Trade void failed", e); }
+
     renderKidChoreGrid();
     refreshKidAvatarPanel();
   } catch(e) { console.error(e); }
@@ -596,3 +610,290 @@ export async function showDailySummary() {
     `;
   } catch(e) { document.getElementById("daily-summary-content").innerHTML = `<p class="empty-sm">Error.</p>`; console.error(e); }
 }
+
+// ═══════════════════════════════════════════════════════
+//  BOUNTY BOARD UI
+// ═══════════════════════════════════════════════════════
+
+export function renderBountyBoard(bounties) {
+  const el = document.getElementById("kid-bounty-board");
+  if (!el) return;
+  const active = bounties.filter(b => b.status === "open" || b.status === "claimed");
+  if (!active.length) {
+    el.innerHTML = `<p class="empty-sm">No bounties right now. Check back later!</p>`;
+    return;
+  }
+  el.innerHTML = "";
+  active.forEach(b => {
+    const isOpen = b.status === "open";
+    const isMine = b.claimedBy === state.kidId;
+    const claimer = state.kids.find(k => k.id === b.claimedBy);
+    const card = document.createElement("div");
+    card.className = `bounty-card ${isOpen ? "bounty-open" : "bounty-claimed"}`;
+    card.innerHTML = `
+      <div class="bounty-emoji">${b.emoji || "⚡"}</div>
+      <div class="bounty-info">
+        <div class="bounty-name">${b.name}</div>
+        <div class="bounty-sub">${isOpen ? "First come, first served!" : isMine ? "You claimed this!" : `Claimed by ${claimer?.nickname || claimer?.name || "someone"}`}</div>
+      </div>
+      ${isOpen ? `<div class="bounty-pts">${b.points} pts</div>` : `<span class="bounty-claimed-badge">${isMine ? "Yours ✓" : "Taken"}</span>`}
+    `;
+    card.addEventListener("click", () => openBountyDetail(b));
+    el.appendChild(card);
+  });
+}
+
+function openBountyDetail(bounty) {
+  document.getElementById("bounty-detail-icon").textContent = bounty.emoji || "⚡";
+  document.getElementById("bounty-detail-name").textContent = bounty.name;
+  document.getElementById("bounty-detail-desc").textContent = bounty.description || "Complete this bounty to earn bonus points!";
+  document.getElementById("bounty-detail-pts").textContent = bounty.points + " pts";
+  const deadlineEl = document.getElementById("bounty-detail-deadline");
+  deadlineEl.textContent = bounty.deadline ? `Due ${bounty.deadline}` : "No deadline";
+  const statusEl = document.getElementById("bounty-detail-status");
+  const claimBtn = document.getElementById("btn-claim-bounty");
+  if (bounty.status === "open") {
+    statusEl.textContent = "⚡ Open"; statusEl.className = "badge bounty-pts-badge";
+    claimBtn.style.display = ""; claimBtn.textContent = "⚡ Claim It!"; claimBtn.disabled = false;
+    claimBtn.onclick = async () => {
+      claimBtn.disabled = true; claimBtn.textContent = "Claiming...";
+      try {
+        const { claimBounty } = await import("./bounty.js");
+        await claimBounty(db, state.familyIdKid, bounty.id, state.kidId);
+        claimBtn.textContent = "✅ Claimed!";
+        setTimeout(() => closeModal("modal-bounty-detail"), 800);
+      } catch (e) {
+        alert(e.message);
+        claimBtn.disabled = false; claimBtn.textContent = "⚡ Claim It!";
+      }
+    };
+  } else {
+    const isMine = bounty.claimedBy === state.kidId;
+    statusEl.textContent = isMine ? "Yours ✓" : "Taken";
+    statusEl.className = "badge";
+    claimBtn.style.display = isMine ? "" : "none";
+    if (isMine) {
+      claimBtn.textContent = "✅ Mark Complete";
+      claimBtn.disabled = false;
+      claimBtn.onclick = async () => {
+        claimBtn.disabled = true; claimBtn.textContent = "Completing...";
+        try {
+          const { completeBounty } = await import("./bounty.js");
+          const result = await completeBounty(db, state.familyIdKid, bounty.id, state.kidId);
+          claimBtn.textContent = `+${result.points} pts!`;
+          setTimeout(() => closeModal("modal-bounty-detail"), 800);
+        } catch(e) { alert(e.message); claimBtn.disabled = false; claimBtn.textContent = "✅ Mark Complete"; }
+      };
+    }
+  }
+  openModal("modal-bounty-detail");
+}
+
+// Parent bounty list
+export function renderParentBountyList(bounties) {
+  const el = document.getElementById("parent-bounty-list");
+  if (!el) return;
+  if (!bounties.length) { el.innerHTML = `<p class="empty-sm">No bounties posted.</p>`; return; }
+  el.innerHTML = "";
+  bounties.forEach(b => {
+    const claimer = b.claimedBy ? state.kids.find(k => k.id === b.claimedBy) : null;
+    const item = document.createElement("div");
+    item.className = "manage-item";
+    item.innerHTML = `
+      <div class="manage-item-emoji">${b.emoji || "⚡"}</div>
+      <div class="manage-item-info">
+        <div class="manage-item-name">${b.name}</div>
+        <div class="manage-item-sub">${b.points} pts · ${b.status === "open" ? "Open" : b.status === "claimed" ? `Claimed by ${claimer?.name||"?"}` : b.status}</div>
+      </div>
+      <button class="manage-item-action" data-id="${b.id}">×</button>
+    `;
+    item.querySelector(".manage-item-action").addEventListener("click", async (e) => {
+      e.stopPropagation();
+      if (!confirm(`Delete bounty "${b.name}"?`)) return;
+      const { deleteBounty } = await import("./bounty.js");
+      await deleteBounty(db, state.familyId, b.id);
+    });
+    el.appendChild(item);
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+//  CHORE TRADING UI
+// ═══════════════════════════════════════════════════════
+
+export function renderPendingTrades(trades) {
+  const el = document.getElementById("pending-trades-list");
+  const label = document.getElementById("pending-trades-label");
+  if (!el || !label) return;
+  const myTrades = trades.filter(t =>
+    t.status === "pending" && (t.proposerId === state.kidId || t.receiverId === state.kidId)
+  );
+  if (!myTrades.length) { el.innerHTML = ""; label.style.display = "none"; return; }
+  label.style.display = "";
+  el.innerHTML = "";
+  myTrades.forEach(t => {
+    const isIncoming = t.receiverId === state.kidId;
+    const otherKid = state.kids.find(k => k.id === (isIncoming ? t.proposerId : t.receiverId));
+    const myChores = (isIncoming ? t.receiverChoreIds : t.proposerChoreIds).map(cid => state.chores.find(c => c.id === cid)).filter(Boolean);
+    const theirChores = (isIncoming ? t.proposerChoreIds : t.receiverChoreIds).map(cid => state.chores.find(c => c.id === cid)).filter(Boolean);
+
+    const card = document.createElement("div");
+    card.className = "trade-card";
+    card.innerHTML = `
+      <div class="trade-card-header">
+        ${isIncoming ? `📥 ${otherKid?.nickname || otherKid?.name || "?"} wants to trade` : `📤 Trade with ${otherKid?.nickname || otherKid?.name || "?"}`}
+        <span class="trade-badge pending">Pending</span>
+      </div>
+      <div class="trade-swap">
+        <div class="trade-side">
+          <div class="trade-side-label">${isIncoming ? "They offer" : "You offer"}</div>
+          ${(isIncoming ? theirChores : myChores).map(c => `<div class="trade-chore-chip">${c.emoji||"📋"} ${c.name}</div>`).join("")}
+        </div>
+        <div class="trade-arrow">⇄</div>
+        <div class="trade-side">
+          <div class="trade-side-label">${isIncoming ? "They want" : "You get"}</div>
+          ${(isIncoming ? myChores : theirChores).map(c => `<div class="trade-chore-chip">${c.emoji||"📋"} ${c.name}</div>`).join("")}
+        </div>
+      </div>
+    `;
+    card.addEventListener("click", () => openTradeView(t, isIncoming, otherKid));
+    el.appendChild(card);
+  });
+}
+
+function openTradeView(trade, isIncoming, otherKid) {
+  const content = document.getElementById("trade-view-content");
+  const actions = document.getElementById("trade-view-actions");
+  const myChores = (isIncoming ? trade.receiverChoreIds : trade.proposerChoreIds).map(cid => state.chores.find(c => c.id === cid)).filter(Boolean);
+  const theirChores = (isIncoming ? trade.proposerChoreIds : trade.receiverChoreIds).map(cid => state.chores.find(c => c.id === cid)).filter(Boolean);
+
+  content.innerHTML = `
+    <p style="font-size:14px;color:var(--text-muted);margin:12px 0">${isIncoming ? `${otherKid?.nickname || "?"} wants to trade with you` : `Waiting for ${otherKid?.nickname || "?"} to respond`}</p>
+    <div class="trade-swap" style="text-align:left;margin:16px 0">
+      <div class="trade-side">
+        <div class="trade-side-label">${isIncoming ? "They offer" : "You offer"}</div>
+        ${(isIncoming ? theirChores : myChores).map(c => `<div class="trade-chore-chip">${c.emoji||"📋"} ${c.name} <span style="margin-left:auto;font-size:11px;color:var(--text-muted)">${c.points||10}pts</span></div>`).join("")}
+      </div>
+      <div class="trade-arrow">⇄</div>
+      <div class="trade-side">
+        <div class="trade-side-label">${isIncoming ? "For your" : "You get"}</div>
+        ${(isIncoming ? myChores : theirChores).map(c => `<div class="trade-chore-chip">${c.emoji||"📋"} ${c.name} <span style="margin-left:auto;font-size:11px;color:var(--text-muted)">${c.points||10}pts</span></div>`).join("")}
+      </div>
+    </div>
+  `;
+
+  if (isIncoming) {
+    actions.innerHTML = `
+      <button class="btn-ghost" id="btn-decline-trade">Decline</button>
+      <button class="btn-primary" id="btn-accept-trade">✅ Accept Trade</button>
+    `;
+    document.getElementById("btn-accept-trade").onclick = async () => {
+      const btn = document.getElementById("btn-accept-trade");
+      btn.disabled = true; btn.textContent = "Accepting...";
+      try {
+        const { acceptTrade } = await import("./trading.js");
+        await acceptTrade(db, state.familyIdKid, trade.id);
+        btn.textContent = "✅ Traded!";
+        setTimeout(() => closeModal("modal-view-trade"), 800);
+      } catch(e) { alert(e.message); btn.disabled = false; btn.textContent = "✅ Accept Trade"; }
+    };
+    document.getElementById("btn-decline-trade").onclick = async () => {
+      const { declineTrade } = await import("./trading.js");
+      await declineTrade(db, state.familyIdKid, trade.id);
+      closeModal("modal-view-trade");
+    };
+  } else {
+    actions.innerHTML = `
+      <button class="btn-ghost" id="btn-cancel-trade-view">Cancel Trade</button>
+      <button class="btn-ghost" id="btn-close-trade-view">Close</button>
+    `;
+    document.getElementById("btn-cancel-trade-view").onclick = async () => {
+      const { cancelTrade } = await import("./trading.js");
+      await cancelTrade(db, state.familyIdKid, trade.id);
+      closeModal("modal-view-trade");
+    };
+    document.getElementById("btn-close-trade-view").onclick = () => closeModal("modal-view-trade");
+  }
+  openModal("modal-view-trade");
+}
+
+// Trade proposal modal logic
+export function openTradeProposal() {
+  state.tradeMyChores = [];
+  state.tradeTargetKid = null;
+  state.tradeTheirChores = [];
+  document.getElementById("trade-error").textContent = "";
+
+  // My chores
+  const myChoresEl = document.getElementById("trade-my-chores");
+  const myChores = state.chores.filter(ch => (ch.assignedTo||[]).includes(state.kidId));
+  myChoresEl.innerHTML = "";
+  if (!myChores.length) { myChoresEl.innerHTML = `<p class="empty-sm">No chores to trade.</p>`; }
+  else myChores.forEach(ch => {
+    const item = document.createElement("div");
+    item.className = "trade-pick-item";
+    item.innerHTML = `<div class="trade-pick-check">✓</div><span style="font-size:18px">${ch.emoji||"📋"}</span><span style="font-size:14px;font-weight:600;flex:1">${ch.name}</span><span style="font-size:12px;color:var(--text-muted)">${ch.points||10}pts</span>`;
+    item.addEventListener("click", () => {
+      const idx = state.tradeMyChores.indexOf(ch.id);
+      if (idx >= 0) state.tradeMyChores.splice(idx, 1); else state.tradeMyChores.push(ch.id);
+      item.classList.toggle("selected", state.tradeMyChores.includes(ch.id));
+    });
+    myChoresEl.appendChild(item);
+  });
+
+  // Target kids
+  const kidsEl = document.getElementById("trade-target-kids");
+  const siblings = state.kids.filter(k => k.id !== state.kidId);
+  kidsEl.innerHTML = "";
+  if (!siblings.length) kidsEl.innerHTML = `<p class="empty-sm">No siblings to trade with.</p>`;
+  else siblings.forEach(kid => {
+    const char = getCharById(kid.baseCharacterId);
+    const avatar = char?.emoji || kid.emoji || "⭐";
+    const btn = document.createElement("button");
+    btn.className = "trade-kid-btn";
+    btn.innerHTML = `<span style="font-size:20px">${avatar}</span> ${kid.nickname||kid.name}`;
+    btn.addEventListener("click", () => {
+      state.tradeTargetKid = kid.id;
+      kidsEl.querySelectorAll(".trade-kid-btn").forEach(b => b.classList.remove("selected"));
+      btn.classList.add("selected");
+      renderTargetKidChores(kid.id);
+    });
+    kidsEl.appendChild(btn);
+  });
+
+  document.getElementById("trade-their-chores").innerHTML = `<p class="empty-sm">Select a sibling first</p>`;
+  openModal("modal-trade-proposal");
+}
+
+function renderTargetKidChores(kidId) {
+  const el = document.getElementById("trade-their-chores");
+  state.tradeTheirChores = [];
+  const theirChores = state.chores.filter(ch => (ch.assignedTo||[]).includes(kidId));
+  el.innerHTML = "";
+  if (!theirChores.length) { el.innerHTML = `<p class="empty-sm">They have no chores right now.</p>`; return; }
+  theirChores.forEach(ch => {
+    const item = document.createElement("div");
+    item.className = "trade-pick-item";
+    item.innerHTML = `<div class="trade-pick-check">✓</div><span style="font-size:18px">${ch.emoji||"📋"}</span><span style="font-size:14px;font-weight:600;flex:1">${ch.name}</span><span style="font-size:12px;color:var(--text-muted)">${ch.points||10}pts</span>`;
+    item.addEventListener("click", () => {
+      const idx = state.tradeTheirChores.indexOf(ch.id);
+      if (idx >= 0) state.tradeTheirChores.splice(idx, 1); else state.tradeTheirChores.push(ch.id);
+      item.classList.toggle("selected", state.tradeTheirChores.includes(ch.id));
+    });
+    el.appendChild(item);
+  });
+}
+
+export async function sendTradeProposal() {
+  const errEl = document.getElementById("trade-error");
+  errEl.textContent = "";
+  if (!state.tradeMyChores.length) { errEl.textContent = "Select at least one of your chores."; return; }
+  if (!state.tradeTargetKid) { errEl.textContent = "Pick a sibling to trade with."; return; }
+  if (!state.tradeTheirChores.length) { errEl.textContent = "Select at least one of their chores."; return; }
+  try {
+    const { proposeTrade } = await import("./trading.js");
+    await proposeTrade(db, state.familyIdKid, state.kidId, state.tradeTargetKid, state.tradeMyChores, state.tradeTheirChores);
+    closeModal("modal-trade-proposal");
+  } catch(e) { errEl.textContent = e.message; }
+}
+

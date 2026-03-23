@@ -29,11 +29,13 @@ export const state = {
   parentUser:null, familyId:null, familyDoc:null,
   kidId:null, kidDoc:null, familyIdKid:null,
   kids:[], chores:[], completions:[], inventory:[],
-  unsubKids:null, unsubChores:null, unsubCompletions:null,
+  bounties:[], trades:[],
+  unsubKids:null, unsubChores:null, unsubCompletions:null, unsubBounties:null, unsubTrades:null,
   editingChoreId:null,
   selectedKidEmoji:"⭐", selectedChoreEmoji:"🧹", selectedAssignedTo:[],
   selectedAvatarEmoji:"⭐", selectedThemeColor:"#8b7cf8",
   selectedCharId:null, storeCategory:"all",
+  selectedBountyEmoji:"⚡", tradeMyChores:[], tradeTargetKid:null, tradeTheirChores:[],
 };
 
 export function showScreen(id) {

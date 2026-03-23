@@ -1,0 +1,15 @@
+{
+  "name": "ChoreQuest",
+  "short_name": "ChoreQuest",
+  "description": "Family chores, beautifully done. A gamified chore management app.",
+  "start_url": "/chore-app/",
+  "scope": "/chore-app/",
+  "display": "standalone",
+  "background_color": "#0a0a0a",
+  "theme_color": "#0a0a0a",
+  "orientation": "portrait",
+  "icons": [
+    { "src": "images/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "images/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
