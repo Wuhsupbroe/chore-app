@@ -1,28 +1,28 @@
 // ═══ ChoreQuest Service Worker ═══
-const CACHE_NAME = "chorequest-v2";
+const CACHE_NAME = "chorequest-v3";
 const SHELL_ASSETS = [
- "/chore-app/",
- "/chore-app/index.html",
- "/chore-app/style.css",
- "/chore-app/app.js",
- "/chore-app/app-core.js",
- "/chore-app/app-ui.js",
- "/chore-app/gamedata.js",
- "/chore-app/gamification.js",
- "/chore-app/bounty.js",
- "/chore-app/trading.js",
- "/chore-app/manifest.json",
+  "./",
+  "./index.html",
+  "./style.css",
+  "./app.js",
+  "./app-core.js",
+  "./app-ui.js",
+  "./gamedata.js",
+  "./gamification.js",
+  "./bounty.js",
+  "./trading.js",
+  "./manifest.json",
 ];
 
 // Cache character images
 const IMAGE_ASSETS = [
- "char_fox.png","char_wolf.png","char_dragon.png","char_panda.png",
- "char_owl.png","char_bunny.png","char_raccoon.png",
- "characters_batch_1.png","characters_batch_2.png","characters_batch_3.png",
- "characters_batch_4.png","characters_batch_5.png",
- "store_outfits.png","store_armor.png","store_weapons.png","store_accessories.png",
- "icon-192.png","icon-512.png"
-].map(f => `/chore-app/images/${f}`);
+  "char_fox.png","char_wolf.png","char_dragon.png","char_panda.png",
+  "char_owl.png","char_bunny.png","char_raccoon.png",
+  "characters_batch_1.png","characters_batch_2.png","characters_batch_3.png",
+  "characters_batch_4.png","characters_batch_5.png",
+  "store_outfits.png","store_armor.png","store_weapons.png","store_accessories.png",
+  "icon-192.png","icon-512.png"
+].map(f => `./images/${f}`);
 
 self.addEventListener("install", e => {
  e.waitUntil(
