@@ -1,5 +1,5 @@
 // ═══ ChoreQuest Service Worker ═══
-const CACHE_NAME = "chorequest-v3";
+const CACHE_NAME = "chorequest-v4";
 const SHELL_ASSETS = [
   "./",
   "./index.html",
