@@ -203,7 +203,6 @@ async function goToKidDashboard(kid, familyId) {
  renderStore();
  showScreen("screen-kid-dashboard");
  startReminderScheduler();
- checkStakes();
  checkIOSInstall();
 }
 
