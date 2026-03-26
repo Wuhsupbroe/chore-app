@@ -597,59 +597,25 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   // ── Auth Handling (The "Mobile Loop Fix") ──────────────
-  let authSettled = false;
-  let redirectChecked = false;
+  // ── Auth Handling (Alignment Mode v2.2) ──────────────
   let initComplete = false;
 
-  async function resolveInitialAuth() {
-    if (authSettled && redirectChecked && !initComplete) {
-      initComplete = true;
-      document.getElementById("auth-loading-overlay")?.classList.add("hidden");
-
-      // Now that we know both have settled, decide where to go
-      if (!state.parentUser) {
-        const a = document.querySelector(".screen.active");
-        const isKidScreen = a && (a.id==="screen-kid-join"||a.id==="screen-kid-select"||a.id==="screen-kid-pin"||a.id==="screen-kid-dashboard"||a.id==="screen-char-select");
-        
-        if (!isKidScreen) {
-          const restored = await tryRestoreKidSession();
-          if (!restored) showScreen("screen-landing");
-        }
+  onAuthStateChanged(auth, async user => {
+    state.parentUser = user;
+    
+    // Always hide loading on first state change
+    document.getElementById("auth-loading-overlay")?.classList.add("hidden");
+    
+    if (!initComplete) {
+      if (user) {
+        initComplete = true;
+        await findOrPromptFamily(user);
+      } else {
+        initComplete = true;
+        const restored = await tryRestoreKidSession();
+        if (!restored) showScreen("screen-landing");
       }
     }
-  }
-
-  // Handle Google redirect result
-  getRedirectResult(auth).then(result => {
-    redirectChecked = true;
-    if (result?.user) {
-      state.parentUser = result.user;
-      if (debugMode) alert("Redirect success: " + result.user.email);
-    }
-    resolveInitialAuth();
-  }).catch(e => {
-    redirectChecked = true;
-    console.warn("Redirect error:", e.message);
-    if (debugMode || true) { // Always show redirect errors for now to debug iOS
-      const errEl = document.getElementById("auth-error");
-      if (errEl) errEl.textContent = "Redirect Error: " + e.message;
-      if (debugMode) alert("REDIRECT ERROR: " + e.message + "\nCode: " + e.code);
-    }
-    resolveInitialAuth();
-  });
-
-  // Firebase Auth Observer
-  onAuthStateChanged(auth, async user => {
-    authSettled = true;
-    if (user) {
-      state.parentUser = user;
-      if (debugMode) alert("Auth State: Signed In (" + user.email + ")");
-      await findOrPromptFamily(user);
-    } else {
-      state.parentUser = null;
-      if (debugMode) alert("Auth State: Signed Out");
-    }
-    resolveInitialAuth();
   });
 
   // ── Form Submissions (Mobile optimization) ──────────
