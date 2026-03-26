@@ -599,13 +599,18 @@ document.addEventListener("DOMContentLoaded", () => {
   let versionTaps = 0;
 
   // Toggle debug mode by tapping version label 5 times
-  document.getElementById("version-label")?.addEventListener("click", () => {
+  const triggerDebug = () => {
     versionTaps++;
     if (versionTaps === 5) {
       debugMode = true;
       alert("DEBUG MODE ENABLED. You will see alerts for all auth errors.");
     }
-  });
+  };
+  const vLabel = document.getElementById("version-label");
+  if (vLabel) {
+    vLabel.addEventListener("click", triggerDebug);
+    vLabel.addEventListener("touchstart", triggerDebug);
+  }
 
   async function resolveInitialAuth() {
     if (authSettled && redirectChecked && !initComplete) {
