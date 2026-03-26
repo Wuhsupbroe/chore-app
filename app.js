@@ -230,13 +230,22 @@ async function handleParentAuth(isSignUp) {
   }
 }
 
-// Use signInWithRedirect (required for iOS standalone PWA — popups are blocked)
+// Use signInWithPopup primary, fallback to Redirect (Fix for Safari ITP on GitHub Pages)
 async function handleGoogleAuth() {
- try {
-   await signInWithRedirect(auth, new GoogleAuthProvider());
- } catch(e) {
-   document.getElementById("auth-error").textContent = e.message;
- }
+  const provider = new GoogleAuthProvider();
+  try {
+    if (debugMode) alert("Attempting signInWithPopup...");
+    await signInWithPopup(auth, provider);
+  } catch (e) {
+    console.warn("Popup failed/blocked:", e.code);
+    if (e.code === 'auth/popup-blocked' || e.code === 'auth/cancelled-popup-request') {
+       if (debugMode) alert("Popup blocked, falling back to Redirect...");
+       await signInWithRedirect(auth, provider);
+    } else {
+       document.getElementById("auth-error").textContent = e.message;
+       if (debugMode) alert("Login Error: " + e.message);
+    }
+  }
 }
 
 async function findOrPromptFamily(user) {

@@ -1,6 +1,6 @@
 // ═══ ChoreQuest — Core (Firebase, State, Helpers) ═══
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithRedirect, getRedirectResult, GoogleAuthProvider, onAuthStateChanged, signOut, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup, signInWithRedirect, getRedirectResult, GoogleAuthProvider, onAuthStateChanged, signOut, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { getFirestore, doc, getDoc, setDoc, addDoc, updateDoc, deleteDoc, collection, query, where, getDocs, onSnapshot, serverTimestamp, orderBy } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const app = initializeApp({
@@ -16,7 +16,7 @@ setPersistence(auth, browserLocalPersistence);
 export const db = getFirestore(app);
 
 // Re-export firebase functions we need elsewhere
-export { signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithRedirect, getRedirectResult, GoogleAuthProvider, onAuthStateChanged, signOut, doc, getDoc, setDoc, addDoc, updateDoc, deleteDoc, collection, query, where, getDocs, onSnapshot, serverTimestamp, orderBy };
+export { signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup, signInWithRedirect, getRedirectResult, GoogleAuthProvider, onAuthStateChanged, signOut, doc, getDoc, setDoc, addDoc, updateDoc, deleteDoc, collection, query, where, getDocs, onSnapshot, serverTimestamp, orderBy };
 
 export const KID_EMOJIS = ["⭐","🦁","🐯","🦊","🐼","🐨","🐸","🦄","🐉","🦋","🐙","🦀","🌟","🚀","⚡","🎮","🎸","⚽","🏀","🎨","🌈","🍕","🎩","🔥","🐶","🐱","🐰","🐻","🦝","🦉","🦚","🐳"];
 export const CHORE_EMOJIS = ["🧹","🍽️","🗑️","🧺","🛏️","🧼","🌿","🐾","📚","🧽","🚿","🪥","🪣","🧴","🪟","🚪","🛁","🍳","🥗","🧹","🧸","🎒","👕","🪴","🔧","🧲","💻","📦","🎯","🌟","⭐","✨"];
