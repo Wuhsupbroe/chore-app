@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════════
 // ChoreQuest — Main App (Event Wiring & Bootstrap)
 // ═══════════════════════════════════════════════════════
-import { auth, db, state, showScreen, openModal, closeModal, genCode, hexToRgb, todayStr, renderEmojiGrid, KID_EMOJIS, CHORE_EMOJIS, THEME_COLORS, signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithRedirect, getRedirectResult, GoogleAuthProvider, onAuthStateChanged, signOut, doc, getDoc, setDoc, addDoc, updateDoc, deleteDoc, collection, query, where, getDocs, onSnapshot, serverTimestamp } from "./app-core.js";
+import { auth, db, state, showScreen, openModal, closeModal, genCode, hexToRgb, todayStr, renderEmojiGrid, KID_EMOJIS, CHORE_EMOJIS, THEME_COLORS, signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup, signInWithRedirect, getRedirectResult, GoogleAuthProvider, onAuthStateChanged, signOut, doc, getDoc, setDoc, addDoc, updateDoc, deleteDoc, collection, query, where, getDocs, onSnapshot, serverTimestamp } from "./app-core.js";
 import { CHARACTERS, getCharById, getLevel, getLevelTier } from "./gamedata.js";
 import { seedStoreIfNeeded } from "./gamification.js";
 import { renderLeaderboard, renderParentChoreGrid, renderKidChoreGrid, renderManageLists, addKid, removeKid, openAddChore, saveChore, showDailySummary, renderAvatarContent, renderCharSelectGrid, openChoreDetail, refreshKidAvatarPanel, renderStore, refreshInventory, viewKidHistory, renderBountyBoard, renderParentBountyList, renderPendingTrades, sendTradeProposal, renderParentTradeReview, checkIOSInstall } from "./app-ui.js";
