@@ -231,16 +231,15 @@ async function handleParentAuth(isSignUp) {
 }
 
 // Use signInWithPopup primary, fallback to Redirect (Fix for Safari ITP on GitHub Pages)
+// Google Auth - Popup ONLY (Matching working login-app)
 async function handleGoogleAuth() {
   const provider = new GoogleAuthProvider();
   try {
-    await signInWithPopup(auth, provider);
+     await signInWithPopup(auth, provider);
   } catch (e) {
-    if (e.code === 'auth/popup-blocked' || e.code === 'auth/cancelled-popup-request') {
-       await signInWithRedirect(auth, provider);
-    } else {
-       document.getElementById("auth-error").textContent = e.message;
-    }
+     if (e.code !== 'auth/popup-closed-by-user' && e.code !== 'auth/cancelled-popup-request') {
+        document.getElementById("auth-error").textContent = e.message;
+     }
   }
 }
 

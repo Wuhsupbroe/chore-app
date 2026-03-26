@@ -4,36 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <title>ChoreQuest</title>
-  <!-- NUCLEAR KILL-SWITCH: Purge old service workers & cache -->
-  <script>
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.getRegistrations().then(function(regs) {
-        if (regs.length > 0) {
-          for (let r of regs) { r.unregister(); }
-          console.log("Purged stale Service Workers.");
-          setTimeout(() => { window.location.replace(window.location.href); }, 100);
-        }
-      });
-    }
-  </script>
-  <meta name="description" content="Family chores, beautifully done. A gamified chore management app." />
-  <meta name="theme-color" content="#0a0a0a" />
-  <!-- Prevent white flash on iOS PWA launch -->
+  <meta name="description" content="Family chores, beautifully done." />
   <style>html,body{background:#0a0a0a;margin:0;padding:0;}</style>
-  <!-- PWA -->
-  <link rel="manifest" href="manifest.json" />
-  <!-- Apple PWA -->
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="ChoreQuest" />
-  <!-- 180x180 is the recommended size for iOS home screen icons -->
-  <link rel="apple-touch-icon" sizes="180x180" href="images/icon-192.png" />
-  <!-- Apple splash screens (prevents white flash on older iOS) -->
-  <link rel="apple-touch-startup-image" media="(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3)" href="images/icon-512.png" />
-  <link rel="apple-touch-startup-image" media="(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3)" href="images/icon-512.png" />
-  <link rel="apple-touch-startup-image" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2)" href="images/icon-512.png" />
-  <link rel="apple-touch-startup-image" media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3)" href="images/icon-512.png" />
-  <link rel="apple-touch-startup-image" media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2)" href="images/icon-512.png" />
+  <link rel="icon" type="image/png" href="images/icon-192.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css?v=2.0.2" />
@@ -43,7 +16,7 @@
   <div id="auth-loading-overlay" class="auth-loading-screen">
     <div class="spinner"></div>
     <p>Authenticating...</p>
-    <div id="version-label" style="font-size: 10px; color: rgba(255,255,255,0.4); margin-top: 10px;">v2.2.1 (Force-Update)</div>
+    <div id="version-label" style="font-size: 10px; color: rgba(255,255,255,0.4); margin-top: 10px;">v2.3.0 (Strict Alignment)</div>
   </div>
 
 
@@ -732,15 +705,5 @@
   </div>
 
   <script type="module" src="app.js?v=2.0.2"></script>
-  <script>
-    // Register Service Worker (DISABLED IN ALIGNMENT MODE v2.2)
-    /*
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('sw.js?v=2.0.2').catch(() => {});
-      });
-    }
-    */
-  </script>
 </body>
 </html>

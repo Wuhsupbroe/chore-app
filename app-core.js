@@ -12,7 +12,6 @@ const app = initializeApp({
   appId: "1:760154109686:web:42670bf2f61ed599b89ed7"
 });
 export const auth = getAuth(app);
-setPersistence(auth, browserLocalPersistence);
 export const db = getFirestore(app);
 
 // Re-export firebase functions we need elsewhere
