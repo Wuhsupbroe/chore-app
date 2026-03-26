@@ -5,7 +5,7 @@ import { getFirestore, doc, getDoc, setDoc, addDoc, updateDoc, deleteDoc, collec
 
 const app = initializeApp({
   apiKey: "AIzaSyDkrzifUy1sCGvuniL312Pp7Lh13Wt2DKI",
-  authDomain: "login-app-b0f88.firebaseapp.com",
+  authDomain: "login-app-b0f88.web.app",
   projectId: "login-app-b0f88",
   storageBucket: "login-app-b0f88.firebasestorage.app",
   messagingSenderId: "760154109686",

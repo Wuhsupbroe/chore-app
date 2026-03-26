@@ -595,12 +595,25 @@ document.addEventListener("DOMContentLoaded", () => {
   let authSettled = false;
   let redirectChecked = false;
   let initComplete = false;
+  let debugMode = false;
+  let versionTaps = 0;
+
+  // Toggle debug mode by tapping version label 5 times
+  document.getElementById("version-label")?.addEventListener("click", () => {
+    versionTaps++;
+    if (versionTaps === 5) {
+      debugMode = true;
+      alert("DEBUG MODE ENABLED. You will see alerts for all auth errors.");
+    }
+  });
 
   async function resolveInitialAuth() {
     if (authSettled && redirectChecked && !initComplete) {
       initComplete = true;
       document.getElementById("auth-loading-overlay")?.classList.add("hidden");
       
+      if (debugMode) alert("Initial Auth Resolved. User: " + (state.parentUser?.email || "None"));
+
       // Now that we know both have settled, decide where to go
       if (!state.parentUser) {
         const a = document.querySelector(".screen.active");
@@ -617,13 +630,19 @@ document.addEventListener("DOMContentLoaded", () => {
   // Handle Google redirect result
   getRedirectResult(auth).then(result => {
     redirectChecked = true;
-    if (result?.user) state.parentUser = result.user;
+    if (result?.user) {
+      state.parentUser = result.user;
+      if (debugMode) alert("Redirect success: " + result.user.email);
+    }
     resolveInitialAuth();
   }).catch(e => {
     redirectChecked = true;
     console.warn("Redirect error:", e.message);
-    const errEl = document.getElementById("auth-error");
-    if (errEl) errEl.textContent = "Auth Error: " + e.message;
+    if (debugMode || true) { // Always show redirect errors for now to debug iOS
+      const errEl = document.getElementById("auth-error");
+      if (errEl) errEl.textContent = "Redirect Error: " + e.message;
+      if (debugMode) alert("REDIRECT ERROR: " + e.message + "\nCode: " + e.code);
+    }
     resolveInitialAuth();
   });
 
@@ -632,9 +651,11 @@ document.addEventListener("DOMContentLoaded", () => {
     authSettled = true;
     if (user) {
       state.parentUser = user;
+      if (debugMode) alert("Auth State: Signed In (" + user.email + ")");
       await findOrPromptFamily(user);
     } else {
       state.parentUser = null;
+      if (debugMode) alert("Auth State: Signed Out");
     }
     resolveInitialAuth();
   });
