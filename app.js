@@ -234,16 +234,12 @@ async function handleParentAuth(isSignUp) {
 async function handleGoogleAuth() {
   const provider = new GoogleAuthProvider();
   try {
-    if (debugMode) alert("Attempting signInWithPopup...");
     await signInWithPopup(auth, provider);
   } catch (e) {
-    console.warn("Popup failed/blocked:", e.code);
     if (e.code === 'auth/popup-blocked' || e.code === 'auth/cancelled-popup-request') {
-       if (debugMode) alert("Popup blocked, falling back to Redirect...");
        await signInWithRedirect(auth, provider);
     } else {
        document.getElementById("auth-error").textContent = e.message;
-       if (debugMode) alert("Login Error: " + e.message);
     }
   }
 }
@@ -604,29 +600,11 @@ document.addEventListener("DOMContentLoaded", () => {
   let authSettled = false;
   let redirectChecked = false;
   let initComplete = false;
-  let debugMode = false;
-  let versionTaps = 0;
-
-  // Toggle debug mode by tapping version label 5 times
-  const triggerDebug = () => {
-    versionTaps++;
-    if (versionTaps === 5) {
-      debugMode = true;
-      alert("DEBUG MODE ENABLED. You will see alerts for all auth errors.");
-    }
-  };
-  const vLabel = document.getElementById("version-label");
-  if (vLabel) {
-    vLabel.addEventListener("click", triggerDebug);
-    vLabel.addEventListener("touchstart", triggerDebug);
-  }
 
   async function resolveInitialAuth() {
     if (authSettled && redirectChecked && !initComplete) {
       initComplete = true;
       document.getElementById("auth-loading-overlay")?.classList.add("hidden");
-      
-      if (debugMode) alert("Initial Auth Resolved. User: " + (state.parentUser?.email || "None"));
 
       // Now that we know both have settled, decide where to go
       if (!state.parentUser) {
