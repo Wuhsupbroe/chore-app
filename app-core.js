@@ -1,17 +1,18 @@
 // ═══ ChoreQuest — Core (Firebase, State, Helpers) ═══
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithRedirect, getRedirectResult, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithRedirect, getRedirectResult, GoogleAuthProvider, onAuthStateChanged, signOut, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { getFirestore, doc, getDoc, setDoc, addDoc, updateDoc, deleteDoc, collection, query, where, getDocs, onSnapshot, serverTimestamp, orderBy } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const app = initializeApp({
- apiKey: "AIzaSyDkrzifUy1sCGvuniL312Pp7Lh13Wt2DKI",
- authDomain: "login-app-b0f88.firebaseapp.com",
- projectId: "login-app-b0f88",
- storageBucket: "login-app-b0f88.firebasestorage.app",
- messagingSenderId: "760154109686",
- appId: "1:760154109686:web:42670bf2f61ed599b89ed7"
+  apiKey: "AIzaSyDkrzifUy1sCGvuniL312Pp7Lh13Wt2DKI",
+  authDomain: "login-app-b0f88.firebaseapp.com",
+  projectId: "login-app-b0f88",
+  storageBucket: "login-app-b0f88.firebasestorage.app",
+  messagingSenderId: "760154109686",
+  appId: "1:760154109686:web:42670bf2f61ed599b89ed7"
 });
 export const auth = getAuth(app);
+setPersistence(auth, browserLocalPersistence);
 export const db = getFirestore(app);
 
 // Re-export firebase functions we need elsewhere

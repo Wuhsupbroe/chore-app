@@ -27,6 +27,15 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
+  <!-- LOADING OVERLAY (Shown on initial load while auth resolves) -->
+  <div id="auth-loading-overlay" class="loading-overlay">
+    <div class="loading-content">
+      <div class="logo-mark">✦</div>
+      <div class="spinner"></div>
+      <p>Loading ChoreQuest...</p>
+    </div>
+  </div>
+
 
   <!-- ═══════════════════════ SCREEN 1: LANDING ═══════════════════════ -->
   <div id="screen-landing" class="screen active">
@@ -60,21 +69,24 @@
       <div class="glass-card auth-card">
         <h2 class="card-title">Parent Sign In</h2>
         <div class="auth-tabs">
-          <button class="auth-tab active" id="tab-signin">Sign In</button>
-          <button class="auth-tab" id="tab-signup">Sign Up</button>
+          <button class="auth-tab active" id="tab-signin" type="button">Sign In</button>
+          <button class="auth-tab" id="tab-signup" type="button">Sign Up</button>
         </div>
-        <div class="form-group" id="signup-name-group" style="display:none;">
-          <input type="text" id="auth-display-name" class="form-input" placeholder="Your name" autocomplete="name" />
-        </div>
-        <div class="form-group">
-          <input type="email" id="auth-email" class="form-input" placeholder="Email address" autocomplete="email" />
-        </div>
-        <div class="form-group">
-          <input type="password" id="auth-password" class="form-input" placeholder="Password" autocomplete="current-password" />
-        </div>
-        <button class="btn-primary" id="btn-email-auth">Sign In</button>
+        <form id="form-parent-auth">
+          <div class="form-group" id="signup-name-group" style="display:none;">
+            <input type="text" id="auth-display-name" class="form-input" placeholder="Your name" autocomplete="name" />
+          </div>
+          <div class="form-group">
+            <input type="email" id="auth-email" class="form-input" placeholder="Email address" autocomplete="email" />
+          </div>
+          <div class="form-group">
+            <input type="password" id="auth-password" class="form-input" placeholder="Password" autocomplete="current-password" />
+          </div>
+          <button class="btn-primary" id="btn-email-auth" type="submit">Sign In</button>
+        </form>
         <div class="divider"><span>or</span></div>
-        <button class="btn-google" id="btn-google-auth">
+        <button class="btn-google" id="btn-google-auth" type="button">
+
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/><path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 009 18z" fill="#34A853"/><path d="M3.964 10.71A5.41 5.41 0 013.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 000 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/><path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 00.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z" fill="#EA4335"/></svg>
           Continue with Google
         </button>
@@ -91,11 +103,14 @@
         <div class="onboard-icon">🏠</div>
         <h2 class="card-title">Create Your Family</h2>
         <p class="card-sub">Give your family a name to get started.</p>
-        <div class="form-group">
-          <input type="text" id="family-name-input" class="form-input" placeholder="e.g. The Johnsons" />
-        </div>
-        <button class="btn-primary" id="btn-create-family">Create Family</button>
-        <button class="btn-ghost" id="btn-logout-create">Log Out</button>
+        <form id="form-create-family">
+          <div class="form-group">
+            <input type="text" id="family-name-input" class="form-input" placeholder="e.g. The Johnsons" />
+          </div>
+          <button class="btn-primary" id="btn-create-family" type="submit" style="margin-top:12px">Create Family</button>
+        </form>
+        <button class="btn-ghost" id="btn-logout-create" style="margin-top:8px">Log Out</button>
+
         <p class="error-msg" id="family-error"></p>
       </div>
     </div>
@@ -193,10 +208,13 @@
           <div class="glass-card invite-card" style="margin-top:16px">
             <p class="invite-label">📱 Your Phone Number</p>
             <p style="font-size:12px;color:var(--text-muted);margin-bottom:12px">For future SMS reminders</p>
-            <input type="tel" id="parent-phone-input" class="form-input" placeholder="+1 555 000 0000" style="margin-bottom:8px" />
-            <button class="btn-primary" id="btn-save-parent-phone">Save Number</button>
+            <form id="form-parent-settings" style="width:100%">
+              <input type="tel" id="parent-phone-input" class="form-input" placeholder="+1 555 000 0000" style="margin-bottom:8px" />
+              <button class="btn-primary" id="btn-save-parent-phone" type="submit">Save Number</button>
+            </form>
             <p class="success-msg" id="parent-phone-msg"></p>
           </div>
+
 
           <!-- Reminders -->
           <div class="glass-card invite-card" style="margin-top:16px">
@@ -241,11 +259,14 @@
         <div class="onboard-icon">🚀</div>
         <h2 class="card-title">Join Your Family</h2>
         <p class="card-sub">Enter the invite code your parent gave you.</p>
-        <div class="form-group">
-          <input type="text" id="join-code-input" class="form-input code-input" placeholder="XXXXXX" maxlength="6" autocomplete="off" />
-        </div>
-        <button class="btn-primary" id="btn-join-family">Join Family →</button>
+        <form id="form-kid-join">
+          <div class="form-group">
+            <input type="text" id="join-code-input" class="form-input code-input" placeholder="XXXXXX" maxlength="6" autocomplete="off" />
+          </div>
+          <button class="btn-primary" id="btn-join-family" type="submit" style="margin-top:12px">Join Family →</button>
+        </form>
         <p class="error-msg" id="join-error"></p>
+
       </div>
     </div>
   </div>

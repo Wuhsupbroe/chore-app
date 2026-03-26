@@ -202,21 +202,32 @@ async function goToKidDashboard(kid, familyId) {
  refreshKidAvatarPanel();
  renderStore();
  showScreen("screen-kid-dashboard");
- startReminderScheduler();
  checkIOSInstall();
 }
 
 // ── Parent auth ──────────────────────────────────────────
 async function handleParentAuth(isSignUp) {
- const email = document.getElementById("auth-email").value.trim();
- const password = document.getElementById("auth-password").value;
- const errEl = document.getElementById("auth-error");
- errEl.textContent = "";
- if (!email||!password) { errEl.textContent = "Fill in all fields."; return; }
- try {
-   if(isSignUp) await createUserWithEmailAndPassword(auth,email,password);
-   else await signInWithEmailAndPassword(auth,email,password);
- } catch(e) { errEl.textContent = e.message; }
+  const email = document.getElementById("auth-email").value.trim();
+  const password = document.getElementById("auth-password").value;
+  const errEl = document.getElementById("auth-error");
+  errEl.textContent = "";
+  if (!email||!password) { errEl.textContent = "Fill in all fields."; return; }
+  
+  // Provide feedback and hide keyboard
+  const btn = document.getElementById("btn-email-auth");
+  const oldTxt = btn.textContent;
+  btn.textContent = "Processing...";
+  btn.disabled = true;
+  document.querySelectorAll(".form-input").forEach(i => i.blur());
+
+  try {
+    if(isSignUp) await createUserWithEmailAndPassword(auth,email,password);
+    else await signInWithEmailAndPassword(auth,email,password);
+  } catch(e) { 
+    errEl.textContent = e.message; 
+    btn.textContent = oldTxt;
+    btn.disabled = false;
+  }
 }
 
 // Use signInWithRedirect (required for iOS standalone PWA — popups are blocked)
@@ -247,22 +258,25 @@ async function createFamily() {
 
 // ── Kid join flow ────────────────────────────────────────
 async function joinFamily() {
- const code = document.getElementById("join-code-input").value.trim().toUpperCase();
- const errEl = document.getElementById("join-error");
- errEl.textContent = "";
- if (!code||code.length<4) { errEl.textContent = "Enter a valid invite code."; return; }
- try {
-   const snap = await getDocs(query(collection(db,"families"),where("inviteCode","==",code)));
-   if (snap.empty) { errEl.textContent = "Code not found."; return; }
-   const famDoc = snap.docs[0];
-   state.familyIdKid = famDoc.id;
-   const kidsSnap = await getDocs(collection(db,"families",famDoc.id,"kids"));
-   state.kids = kidsSnap.docs.map(d => ({ id:d.id, ...d.data() }));
-   const nameEl = document.getElementById("kid-select-family-name");
-   if (nameEl) nameEl.textContent = famDoc.data().name || "The Family";
-   renderKidSelectGrid();
-   showScreen("screen-kid-select");
- } catch(e) { errEl.textContent = e.message; }
+  const input = document.getElementById("join-code-input");
+  const code = input.value.trim().toUpperCase();
+  const errEl = document.getElementById("join-error");
+  errEl.textContent = "";
+  if (!code||code.length<4) { errEl.textContent = "Enter a valid invite code."; return; }
+  
+  input.blur();
+  try {
+    const snap = await getDocs(query(collection(db,"families"),where("inviteCode","==",code)));
+    if (snap.empty) { errEl.textContent = "Code not found."; return; }
+    const famDoc = snap.docs[0];
+    state.familyIdKid = famDoc.id;
+    const kidsSnap = await getDocs(collection(db,"families",famDoc.id,"kids"));
+    state.kids = kidsSnap.docs.map(d => ({ id:d.id, ...d.data() }));
+    const nameEl = document.getElementById("kid-select-family-name");
+    if (nameEl) nameEl.textContent = famDoc.data().name || "The Family";
+    renderKidSelectGrid();
+    showScreen("screen-kid-select");
+  } catch(e) { errEl.textContent = e.message; }
 }
 function renderKidSelectGrid() {
  const grid = document.getElementById("kid-select-grid");
@@ -431,192 +445,216 @@ function setupParentSettings() {
 // WIRE UP ALL EVENTS
 // ══════════════════════════════════════════════════════════
 document.addEventListener("DOMContentLoaded", () => {
- // Landing
- document.getElementById("btn-parent-role").addEventListener("click", () => showScreen("screen-parent-auth"));
- document.getElementById("btn-kid-role").addEventListener("click", () => showScreen("screen-kid-join"));
+  // Landing
+  document.getElementById("btn-parent-role").addEventListener("click", () => showScreen("screen-parent-auth"));
+  document.getElementById("btn-kid-role").addEventListener("click", () => showScreen("screen-kid-join"));
 
- // Parent Auth
- let isSignUp = false;
- document.getElementById("auth-back-btn").addEventListener("click", () => showScreen("screen-landing"));
- document.getElementById("tab-signin").addEventListener("click", () => {
-   isSignUp=false;
-   document.getElementById("tab-signin").classList.add("active");
-   document.getElementById("tab-signup").classList.remove("active");
-   document.getElementById("btn-email-auth").textContent="Sign In";
-   document.getElementById("signup-name-group").style.display="none";
- });
- document.getElementById("tab-signup").addEventListener("click", () => {
-   isSignUp=true;
-   document.getElementById("tab-signup").classList.add("active");
-   document.getElementById("tab-signin").classList.remove("active");
-   document.getElementById("btn-email-auth").textContent="Create Account";
-   document.getElementById("signup-name-group").style.display="flex";
- });
- document.getElementById("btn-email-auth").addEventListener("click", () => handleParentAuth(isSignUp));
- document.getElementById("btn-google-auth").addEventListener("click", handleGoogleAuth);
+  // Parent Auth
+  let isSignUp = false;
+  document.getElementById("auth-back-btn").addEventListener("click", () => showScreen("screen-landing"));
+  document.getElementById("tab-signin").addEventListener("click", () => {
+    isSignUp=false;
+    document.getElementById("tab-signin").classList.add("active");
+    document.getElementById("tab-signup").classList.remove("active");
+    document.getElementById("btn-email-auth").textContent="Sign In";
+    document.getElementById("signup-name-group").style.display="none";
+  });
+  document.getElementById("tab-signup").addEventListener("click", () => {
+    isSignUp=true;
+    document.getElementById("tab-signup").classList.add("active");
+    document.getElementById("tab-signin").classList.remove("active");
+    document.getElementById("btn-email-auth").textContent="Create Account";
+    document.getElementById("signup-name-group").style.display="flex";
+  });
+  // Note: Form submit will now handle handleParentAuth(isSignUp)
+  document.getElementById("btn-google-auth").addEventListener("click", handleGoogleAuth);
 
- // Create Family
- document.getElementById("btn-create-family").addEventListener("click", createFamily);
- document.getElementById("btn-logout-create").addEventListener("click", () => { signOut(auth); showScreen("screen-landing"); });
+  // Create Family — Form handled below
+  document.getElementById("btn-logout-create").addEventListener("click", () => { signOut(auth); showScreen("screen-landing"); });
 
- // Parent Dashboard nav
- document.querySelectorAll(".nav-btn").forEach(btn => {
-   btn.addEventListener("click", () => {
-     const p=btn.dataset.panel;
-     document.querySelectorAll(".tab-panel").forEach(p2=>p2.classList.remove("active-panel"));
-     document.getElementById(p).classList.add("active-panel");
-     document.querySelectorAll(".nav-btn").forEach(b=>b.classList.remove("active"));
-     btn.classList.add("active");
-   });
- });
- document.getElementById("btn-parent-logout").addEventListener("click", parentLogout);
- document.getElementById("btn-daily-summary").addEventListener("click", showDailySummary);
+  // Parent Dashboard nav
+  document.querySelectorAll(".nav-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const p=btn.dataset.panel;
+      document.querySelectorAll(".tab-panel").forEach(p2=>p2.classList.remove("active-panel"));
+      document.getElementById(p).classList.add("active-panel");
+      document.querySelectorAll(".nav-btn").forEach(b=>b.classList.remove("active"));
+      btn.classList.add("active");
+    });
+  });
+  document.getElementById("btn-parent-logout").addEventListener("click", parentLogout);
+  document.getElementById("btn-daily-summary").addEventListener("click", showDailySummary);
 
- // Manage
- document.getElementById("btn-add-kid").addEventListener("click", () => {
-   document.getElementById("kid-name-input").value="";
-   document.getElementById("kid-age-input").value="";
-   document.getElementById("add-kid-error").textContent="";
-   state.selectedKidEmoji="⭐";
-   renderEmojiGrid("kid-emoji-picker",KID_EMOJIS,e=>{state.selectedKidEmoji=e;},"⭐");
-   openModal("modal-add-kid");
- });
- document.getElementById("btn-add-chore").addEventListener("click", openAddChore);
+  // Manage
+  document.getElementById("btn-add-kid").addEventListener("click", () => {
+    document.getElementById("kid-name-input").value="";
+    document.getElementById("kid-age-input").value="";
+    document.getElementById("add-kid-error").textContent="";
+    state.selectedKidEmoji="⭐";
+    renderEmojiGrid("kid-emoji-picker",KID_EMOJIS,e=>{state.selectedKidEmoji=e;},"⭐");
+    openModal("modal-add-kid");
+  });
+  document.getElementById("btn-add-chore").addEventListener("click", openAddChore);
 
- // Invite
- document.getElementById("btn-copy-code").addEventListener("click", () => {
-   navigator.clipboard.writeText(state.familyDoc?.inviteCode||"").then(()=>{document.getElementById("copy-success").textContent="Copied!"; setTimeout(()=>{document.getElementById("copy-success").textContent="";},2000);});
- });
- document.getElementById("btn-copy-link").addEventListener("click", () => {
-   const link=`${location.origin}${location.pathname}?join=${state.familyDoc?.inviteCode||""}`;
-   navigator.clipboard.writeText(link).then(()=>{document.getElementById("copy-success").textContent="Link copied!"; setTimeout(()=>{document.getElementById("copy-success").textContent="";},2000);});
- });
- document.getElementById("btn-regen-code").addEventListener("click", regenCode);
+  // Invite
+  document.getElementById("btn-copy-code").addEventListener("click", () => {
+    navigator.clipboard.writeText(state.familyDoc?.inviteCode||"").then(()=>{document.getElementById("copy-success").textContent="Copied!"; setTimeout(()=>{document.getElementById("copy-success").textContent="";},2000);});
+  });
+  document.getElementById("btn-copy-link").addEventListener("click", () => {
+    const link=`${location.origin}${location.pathname}?join=${state.familyDoc?.inviteCode||""}`;
+    navigator.clipboard.writeText(link).then(()=>{document.getElementById("copy-success").textContent="Link copied!"; setTimeout(()=>{document.getElementById("copy-success").textContent="";},2000);});
+  });
+  document.getElementById("btn-regen-code").addEventListener("click", regenCode);
 
- // Kid Join
- document.getElementById("kid-join-back").addEventListener("click", () => showScreen("screen-landing"));
- document.getElementById("btn-join-family").addEventListener("click", joinFamily);
- document.getElementById("join-code-input").addEventListener("keydown", e => { if(e.key==="Enter") joinFamily(); });
- document.getElementById("kid-select-back").addEventListener("click", () => showScreen("screen-kid-join"));
+  // Kid Join
+  document.getElementById("kid-join-back").addEventListener("click", () => showScreen("screen-landing"));
+  // Form handled below
+  document.getElementById("kid-select-back").addEventListener("click", () => showScreen("screen-kid-join"));
 
- // Character Select
- document.getElementById("btn-confirm-char").addEventListener("click", confirmCharacterSelection);
+  // Character Select
+  document.getElementById("btn-confirm-char").addEventListener("click", confirmCharacterSelection);
 
- // PIN
- document.getElementById("kid-pin-back").addEventListener("click", () => { resetPinDots(); showScreen("screen-kid-select"); });
- document.querySelectorAll(".num-btn[data-num]").forEach(btn => {
-   btn.addEventListener("click", () => {
-     if(pinBuffer.length>=4)return;
-     pinBuffer+=btn.dataset.num;
-     updatePinDots();
-     if(pinBuffer.length===4) submitPin();
-   });
- });
- document.getElementById("pin-del").addEventListener("click", () => { pinBuffer=pinBuffer.slice(0,-1); updatePinDots(); });
+  // PIN
+  document.getElementById("kid-pin-back").addEventListener("click", () => { resetPinDots(); showScreen("screen-kid-select"); });
+  document.querySelectorAll(".num-btn[data-num]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      if(pinBuffer.length>=4)return;
+      pinBuffer+=btn.dataset.num;
+      updatePinDots();
+      if(pinBuffer.length===4) submitPin();
+    });
+  });
+  document.getElementById("pin-del").addEventListener("click", () => { pinBuffer=pinBuffer.slice(0,-1); updatePinDots(); });
 
- // Kid dashboard
- document.getElementById("btn-kid-customize").addEventListener("click", openKidCustomize);
- document.getElementById("btn-kid-logout").addEventListener("click", kidLogout);
+  // Kid dashboard
+  document.getElementById("btn-kid-customize").addEventListener("click", openKidCustomize);
+  document.getElementById("btn-kid-logout").addEventListener("click", kidLogout);
 
- // Kid nav tabs
- document.querySelectorAll(".kid-nav-tab").forEach(btn => {
-   btn.addEventListener("click", () => {
-     const panelId = btn.dataset.kidPanel;
-     document.querySelectorAll(".kid-tab-panel").forEach(p => p.classList.remove("active-kid-panel"));
-     document.getElementById(panelId)?.classList.add("active-kid-panel");
-     document.querySelectorAll(".kid-nav-tab").forEach(b => b.classList.remove("active"));
-     btn.classList.add("active");
-     if (panelId === "kid-panel-store") renderStore();
-     if (panelId === "kid-panel-avatar") refreshKidAvatarPanel();
-   });
- });
+  // Kid nav tabs
+  document.querySelectorAll(".kid-nav-tab").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const panelId = btn.dataset.kidPanel;
+      document.querySelectorAll(".kid-tab-panel").forEach(p => p.classList.remove("active-kid-panel"));
+      document.getElementById(panelId)?.classList.add("active-kid-panel");
+      document.querySelectorAll(".kid-nav-tab").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      if (panelId === "kid-panel-store") renderStore();
+      if (panelId === "kid-panel-avatar") refreshKidAvatarPanel();
+    });
+  });
 
- // Store categories
- document.querySelectorAll(".store-cat-btn").forEach(btn => {
-   btn.addEventListener("click", () => {
-     state.storeCategory=btn.dataset.cat;
-     document.querySelectorAll(".store-cat-btn").forEach(b=>b.classList.remove("active"));
-     btn.classList.add("active");
-     renderStore();
-   });
- });
+  // Store categories
+  document.querySelectorAll(".store-cat-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      state.storeCategory=btn.dataset.cat;
+      document.querySelectorAll(".store-cat-btn").forEach(b=>b.classList.remove("active"));
+      btn.classList.add("active");
+      renderStore();
+    });
+  });
 
- // Modals
- document.getElementById("btn-cancel-kid").addEventListener("click", () => closeModal("modal-add-kid"));
- document.getElementById("btn-save-kid").addEventListener("click", addKid);
- document.getElementById("btn-cancel-chore").addEventListener("click", () => closeModal("modal-add-chore"));
- document.getElementById("btn-save-chore").addEventListener("click", saveChore);
- document.getElementById("btn-close-detail").addEventListener("click", () => closeModal("modal-chore-detail"));
- document.getElementById("btn-cancel-customize").addEventListener("click", () => closeModal("modal-kid-customize"));
- document.getElementById("btn-save-customize").addEventListener("click", saveKidCustomize);
- document.getElementById("btn-close-kid-history").addEventListener("click", () => closeModal("modal-kid-history"));
- document.getElementById("btn-close-summary").addEventListener("click", () => closeModal("modal-daily-summary"));
- document.getElementById("btn-close-store-item").addEventListener("click", () => closeModal("modal-store-item"));
- document.getElementById("btn-close-view-avatar").addEventListener("click", () => closeModal("modal-view-avatar"));
+  // Modals
+  document.getElementById("btn-cancel-kid").addEventListener("click", () => closeModal("modal-add-kid"));
+  document.getElementById("btn-save-kid").addEventListener("click", addKid);
+  document.getElementById("btn-cancel-chore").addEventListener("click", () => closeModal("modal-add-chore"));
+  document.getElementById("btn-save-chore").addEventListener("click", saveChore);
+  document.getElementById("btn-close-detail").addEventListener("click", () => closeModal("modal-chore-detail"));
+  document.getElementById("btn-cancel-customize").addEventListener("click", () => closeModal("modal-kid-customize"));
+  document.getElementById("btn-save-customize").addEventListener("click", saveKidCustomize);
+  document.getElementById("btn-close-kid-history").addEventListener("click", () => closeModal("modal-kid-history"));
+  document.getElementById("btn-close-summary").addEventListener("click", () => closeModal("modal-daily-summary"));
+  document.getElementById("btn-close-store-item").addEventListener("click", () => closeModal("modal-store-item"));
+  document.getElementById("btn-close-view-avatar").addEventListener("click", () => closeModal("modal-view-avatar"));
 
- // Bounty Board (Parent)
- document.getElementById("btn-post-bounty")?.addEventListener("click", openPostBounty);
- document.getElementById("btn-cancel-bounty")?.addEventListener("click", () => closeModal("modal-post-bounty"));
- document.getElementById("btn-save-bounty")?.addEventListener("click", saveBounty);
+  // Bounty Board (Parent)
+  document.getElementById("btn-post-bounty")?.addEventListener("click", openPostBounty);
+  document.getElementById("btn-cancel-bounty")?.addEventListener("click", () => closeModal("modal-post-bounty"));
+  document.getElementById("btn-save-bounty")?.addEventListener("click", saveBounty);
 
- // Bounty Board (Kid)
- document.getElementById("btn-close-bounty-detail")?.addEventListener("click", () => closeModal("modal-bounty-detail"));
+  // Bounty Board (Kid)
+  document.getElementById("btn-close-bounty-detail")?.addEventListener("click", () => closeModal("modal-bounty-detail"));
 
- // Trading
- document.getElementById("btn-cancel-trade")?.addEventListener("click", () => closeModal("modal-trade-proposal"));
- document.getElementById("btn-send-trade")?.addEventListener("click", sendTradeProposal);
- document.getElementById("btn-close-view-trade")?.addEventListener("click", () => closeModal("modal-view-trade"));
+  // Trading
+  document.getElementById("btn-cancel-trade")?.addEventListener("click", () => closeModal("modal-trade-proposal"));
+  document.getElementById("btn-send-trade")?.addEventListener("click", sendTradeProposal);
+  document.getElementById("btn-close-view-trade")?.addEventListener("click", () => closeModal("modal-view-trade"));
 
- // Parent phone save
- document.getElementById("btn-save-parent-phone")?.addEventListener("click", async () => {
-   const phone=document.getElementById("parent-phone-input")?.value.trim()||"";
-   if(!state.familyId) return;
-   try {
-     await updateDoc(doc(db,"families",state.familyId),{parentPhone:phone});
-     if(state.familyDoc) state.familyDoc.parentPhone=phone;
-     const msg=document.getElementById("parent-phone-msg");
-     if(msg){msg.textContent="Saved!"; setTimeout(()=>{msg.textContent="";},2000);}
-   } catch(e){ console.error(e); }
- });
+  // Kid notifs
+  const nkb=document.getElementById("btn-enable-kid-notifs");
+  if(nkb){
+    if(Notification.permission==="granted") nkb.textContent="✅ Notifications On";
+    nkb.addEventListener("click",async()=>{const ok=await requestNotificationPermission(); nkb.textContent=ok?"✅ Notifications On":"Blocked";});
+  }
 
- // Kid notifs
- const nkb=document.getElementById("btn-enable-kid-notifs");
- if(nkb){
-   if(Notification.permission==="granted") nkb.textContent="✅ Notifications On";
-   nkb.addEventListener("click",async()=>{const ok=await requestNotificationPermission(); nkb.textContent=ok?"✅ Notifications On":"Blocked";});
- }
+  // Close modals via overlay
+  document.querySelectorAll(".modal-overlay").forEach(o => {
+    o.addEventListener("click", e => { if(e.target===o) o.classList.add("hidden"); });
+  });
 
- // Close modals via overlay
- document.querySelectorAll(".modal-overlay").forEach(o => {
-   o.addEventListener("click", e => { if(e.target===o) o.classList.add("hidden"); });
- });
+  // ── Auth Handling (The "Mobile Loop Fix") ──────────────
+  let authSettled = false;
+  let redirectChecked = false;
 
- // Firebase Auth — also handles Google redirect result on page load
- onAuthStateChanged(auth, async user => {
-   if (user) {
-     state.parentUser=user;
-     await findOrPromptFamily(user);
-   } else {
-     state.parentUser=null;
-     const a=document.querySelector(".screen.active");
-     if(a && (a.id==="screen-kid-join"||a.id==="screen-kid-select"||a.id==="screen-kid-pin"||a.id==="screen-kid-dashboard"||a.id==="screen-char-select")) return;
-     // Try to restore kid session (persists across refresh/close)
-     const restored = await tryRestoreKidSession();
-     if (!restored) showScreen("screen-landing");
-   }
- });
+  function hideLoading() {
+    if (authSettled && redirectChecked) {
+      document.getElementById("auth-loading-overlay")?.classList.add("hidden");
+    }
+  }
 
- // Handle Google redirect result (fires after returning from Google auth page on iOS PWA)
- getRedirectResult(auth).then(result => {
-   if (result?.user) {
-     // onAuthStateChanged will handle the rest
-     state.parentUser = result.user;
-   }
- }).catch(e => {
-   console.warn("Redirect result error:", e.message);
- });
+  // Handle Google redirect result
+  getRedirectResult(auth).then(result => {
+    redirectChecked = true;
+    if (result?.user) state.parentUser = result.user;
+    hideLoading();
+  }).catch(e => {
+    redirectChecked = true;
+    console.warn("Redirect error:", e.message);
+    hideLoading();
+  });
 
- checkJoinParam();
- renderEmojiGrid("kid-emoji-picker", KID_EMOJIS, e => { state.selectedKidEmoji=e; }, "⭐");
- renderEmojiGrid("chore-emoji-picker", CHORE_EMOJIS, e => { state.selectedChoreEmoji=e; }, "🧹");
+  // Firebase Auth Observer
+  onAuthStateChanged(auth, async user => {
+    authSettled = true;
+    if (user) {
+      state.parentUser = user;
+      await findOrPromptFamily(user);
+    } else {
+      state.parentUser = null;
+      const a = document.querySelector(".screen.active");
+      const isKidScreen = a && (a.id==="screen-kid-join"||a.id==="screen-kid-select"||a.id==="screen-kid-pin"||a.id==="screen-kid-dashboard"||a.id==="screen-char-select");
+      
+      if (!isKidScreen) {
+        const restored = await tryRestoreKidSession();
+        if (!restored) showScreen("screen-landing");
+      }
+    }
+    hideLoading();
+  });
+
+  // ── Form Submissions (Mobile optimization) ──────────
+  document.getElementById("form-parent-auth")?.addEventListener("submit", e => {
+    e.preventDefault(); handleParentAuth(isSignUp);
+  });
+  document.getElementById("form-create-family")?.addEventListener("submit", e => {
+    e.preventDefault(); createFamily();
+  });
+  document.getElementById("form-kid-join")?.addEventListener("submit", e => {
+    e.preventDefault(); joinFamily();
+  });
+  document.getElementById("form-parent-settings")?.addEventListener("submit", async e => {
+    e.preventDefault();
+    const phone = document.getElementById("parent-phone-input")?.value.trim() || "";
+    if (!state.familyId) return;
+    document.getElementById("parent-phone-input")?.blur();
+    try {
+      await updateDoc(doc(db, "families", state.familyId), { parentPhone: phone });
+      if (state.familyDoc) state.familyDoc.parentPhone = phone;
+      const msg = document.getElementById("parent-phone-msg");
+      if (msg) { msg.textContent = "Saved!"; setTimeout(() => { msg.textContent = ""; }, 2000); }
+    } catch (err) { console.error(err); }
+  });
+
+  checkJoinParam();
+  renderEmojiGrid("kid-emoji-picker", KID_EMOJIS, e => { state.selectedKidEmoji = e; }, "⭐");
+  renderEmojiGrid("chore-emoji-picker", CHORE_EMOJIS, e => { state.selectedChoreEmoji = e; }, "🧹");
 });
