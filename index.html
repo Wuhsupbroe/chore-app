@@ -4,6 +4,18 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <title>ChoreQuest</title>
+  <!-- NUCLEAR KILL-SWITCH: Purge old service workers & cache -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(function(regs) {
+        if (regs.length > 0) {
+          for (let r of regs) { r.unregister(); }
+          console.log("Purged stale Service Workers.");
+          setTimeout(() => { window.location.replace(window.location.href); }, 100);
+        }
+      });
+    }
+  </script>
   <meta name="description" content="Family chores, beautifully done. A gamified chore management app." />
   <meta name="theme-color" content="#0a0a0a" />
   <!-- Prevent white flash on iOS PWA launch -->
@@ -31,7 +43,7 @@
   <div id="auth-loading-overlay" class="auth-loading-screen">
     <div class="spinner"></div>
     <p>Authenticating...</p>
-    <div id="version-label" style="font-size: 10px; color: rgba(255,255,255,0.4); margin-top: 10px;">v2.2.0 (Alignment Mode)</div>
+    <div id="version-label" style="font-size: 10px; color: rgba(255,255,255,0.4); margin-top: 10px;">v2.2.1 (Force-Update)</div>
   </div>
 
 
