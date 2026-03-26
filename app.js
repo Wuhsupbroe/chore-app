@@ -597,23 +597,19 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // ── Auth Handling (The "Mobile Loop Fix") ──────────────
   // ── Auth Handling (Alignment Mode v2.2) ──────────────
-  let initComplete = false;
-
   onAuthStateChanged(auth, async user => {
     state.parentUser = user;
     
     // Always hide loading on first state change
     document.getElementById("auth-loading-overlay")?.classList.add("hidden");
     
-    if (!initComplete) {
-      if (user) {
-        initComplete = true;
-        await findOrPromptFamily(user);
-      } else {
-        initComplete = true;
-        const restored = await tryRestoreKidSession();
-        if (!restored) showScreen("screen-landing");
-      }
+    if (user) {
+      // Parent is logged in - take them to the dashboard
+      await findOrPromptFamily(user);
+    } else if (!state.kidId) {
+      // No parent user and no active kid session - try to restore or landing
+      const restored = await tryRestoreKidSession();
+      if (!restored) showScreen("screen-landing");
     }
   });
 
