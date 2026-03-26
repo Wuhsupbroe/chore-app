@@ -594,10 +594,23 @@ document.addEventListener("DOMContentLoaded", () => {
   // ── Auth Handling (The "Mobile Loop Fix") ──────────────
   let authSettled = false;
   let redirectChecked = false;
+  let initComplete = false;
 
-  function hideLoading() {
-    if (authSettled && redirectChecked) {
+  async function resolveInitialAuth() {
+    if (authSettled && redirectChecked && !initComplete) {
+      initComplete = true;
       document.getElementById("auth-loading-overlay")?.classList.add("hidden");
+      
+      // Now that we know both have settled, decide where to go
+      if (!state.parentUser) {
+        const a = document.querySelector(".screen.active");
+        const isKidScreen = a && (a.id==="screen-kid-join"||a.id==="screen-kid-select"||a.id==="screen-kid-pin"||a.id==="screen-kid-dashboard"||a.id==="screen-char-select");
+        
+        if (!isKidScreen) {
+          const restored = await tryRestoreKidSession();
+          if (!restored) showScreen("screen-landing");
+        }
+      }
     }
   }
 
@@ -605,11 +618,13 @@ document.addEventListener("DOMContentLoaded", () => {
   getRedirectResult(auth).then(result => {
     redirectChecked = true;
     if (result?.user) state.parentUser = result.user;
-    hideLoading();
+    resolveInitialAuth();
   }).catch(e => {
     redirectChecked = true;
     console.warn("Redirect error:", e.message);
-    hideLoading();
+    const errEl = document.getElementById("auth-error");
+    if (errEl) errEl.textContent = "Auth Error: " + e.message;
+    resolveInitialAuth();
   });
 
   // Firebase Auth Observer
@@ -620,15 +635,8 @@ document.addEventListener("DOMContentLoaded", () => {
       await findOrPromptFamily(user);
     } else {
       state.parentUser = null;
-      const a = document.querySelector(".screen.active");
-      const isKidScreen = a && (a.id==="screen-kid-join"||a.id==="screen-kid-select"||a.id==="screen-kid-pin"||a.id==="screen-kid-dashboard"||a.id==="screen-char-select");
-      
-      if (!isKidScreen) {
-        const restored = await tryRestoreKidSession();
-        if (!restored) showScreen("screen-landing");
-      }
     }
-    hideLoading();
+    resolveInitialAuth();
   });
 
   // ── Form Submissions (Mobile optimization) ──────────
