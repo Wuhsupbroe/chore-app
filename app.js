@@ -229,16 +229,29 @@ async function handleParentAuth(isSignUp) {
   }
 }
 
-// Use signInWithPopup primary, fallback to Redirect (Fix for Safari ITP on GitHub Pages)
-// Google Auth - Popup ONLY (Matching working login-app)
+// Detect iOS/Safari where signInWithPopup is blocked by ITP
+function isIosSafari() {
+  const ua = navigator.userAgent;
+  return /iP(hone|od|ad)/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+}
+
+// Google Auth - use redirect on iOS/Safari (ITP blocks popups), popup elsewhere
 async function handleGoogleAuth() {
   const provider = new GoogleAuthProvider();
-  try {
-     await signInWithPopup(auth, provider);
-  } catch (e) {
-     if (e.code !== 'auth/popup-closed-by-user' && e.code !== 'auth/cancelled-popup-request') {
+  if (isIosSafari()) {
+    try {
+      await signInWithRedirect(auth, provider);
+    } catch (e) {
+      document.getElementById("auth-error").textContent = e.message;
+    }
+  } else {
+    try {
+      await signInWithPopup(auth, provider);
+    } catch (e) {
+      if (e.code !== 'auth/popup-closed-by-user' && e.code !== 'auth/cancelled-popup-request') {
         document.getElementById("auth-error").textContent = e.message;
-     }
+      }
+    }
   }
 }
 
@@ -592,6 +605,14 @@ document.addEventListener("DOMContentLoaded", () => {
   // Close modals via overlay
   document.querySelectorAll(".modal-overlay").forEach(o => {
     o.addEventListener("click", e => { if(e.target===o) o.classList.add("hidden"); });
+  });
+
+  // ── Handle redirect result from iOS/Safari Google Sign-In ──
+  getRedirectResult(auth).catch(e => {
+    if (e.code !== 'auth/popup-closed-by-user' && e.code !== 'auth/cancelled-popup-request') {
+      const errEl = document.getElementById("auth-error");
+      if (errEl) errEl.textContent = e.message;
+    }
   });
 
   // ── Auth Handling (The "Mobile Loop Fix") ──────────────
